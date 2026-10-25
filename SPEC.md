@@ -17,7 +17,8 @@ time-offset = "Z" / ("+" / "-") time-hour ":" time-minute
 
 - Every field has exactly the number of digits the grammar gives. A digit is an ASCII digit, `0` to `9`. The parser rejects digits from other scripts, such as `٣` and `０`.
 - The year runs from 0000 to 9999 and the month from 01 to 12. The day runs from 01 to the length of its month, as in the table of section 5.7. February has 29 days in a leap year and 28 otherwise. A leap year is one divisible by 4, unless it is divisible by 100 and not by 400 (Appendix C).
-- The hour runs from 00 to 23 and the minute from 00 to 59. The second runs from 00 to 59. It may be 60 only for a leap second, which section 5.7 places at the end of a month in UTC. With the offset applied, the time must be 23:59 UTC on the last day of a month. Because the leap second is shifted by the offset, `1990-12-31T15:59:60-08:00` is the same leap second as `1990-12-31T23:59:60Z`. The parser does not check whether a leap second was actually announced for that month.
+- The hour runs from 00 to 23 and the minute from 00 to 59. The second runs from 00 to 59. It may be 60 only for a leap second, which section 5.7 places at the end of a month in UTC. With the offset applied, the time must be 23:59 UTC on the last day of a month. Because the leap second is shifted by the offset, `1990-12-31T15:59:60-08:00` is the same leap second as `1990-12-31T23:59:60Z`.
+- Section 5.7 allows second 60 only at the end of months in which a leap second occurs. This library keeps no table of them, so it allows second 60 at the end of every month, which is more than section 5.7 allows. It also allows second 59 everywhere, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened. `Spec.Valid` states the rule as this library applies it.
 - The fraction is optional. When present it is a point and at least one digit, with no upper limit on the digits. The parser keeps every digit as written.
 - The offset is `Z`, `+hh:mm` or `-hh:mm`, with hours from 00 to 23 and minutes from 00 to 59. Section 4.3 gives `-00:00` its own meaning, an unknown local offset. It is therefore kept apart from `+00:00` and from `Z`, although all three name the same instant.
 - The note under the grammar lets `T` and `Z` be written in lower case. The parser accepts `t` and `z`, and printing writes upper case.
@@ -41,7 +42,7 @@ time-offset = "Z" / ("+" / "-") time-hour ":" time-minute
 
 POSIX time has no number for a leap second. As in POSIX time, second 60 is counted as 60 seconds into its minute, so `1990-12-31T23:59:60Z` and `1991-01-01T00:00:00Z` give the same number.
 
-`Timestamp.compareInstant` orders two valid timestamps by the instants they name, fraction included, whatever their offsets. It gives `eq` when the instants are equal, as for `2000-01-01T00:00:00.5Z` and `2000-01-01T01:00:00.500+01:00`.
+`Timestamp.compareInstant` orders two valid timestamps by the instants they name, whatever their offsets: by UTC minute, then by the second within it, where a leap second, 60, comes after 59, then by the fraction, compared exactly. It does not use Unix seconds, so `1990-12-31T23:59:60Z` comes before `1991-01-01T00:00:00Z`. It gives `eq` when the instants are equal, as for `2000-01-01T00:00:00.5Z` and `2000-01-01T01:00:00.500+01:00`.
 
 ## Errors
 
@@ -62,16 +63,17 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 
 | Property | Theorem |
 |----------|---------|
-| `isValid` decides exactly the rules of sections 5.6 and 5.7. | `Spec.isValid_iff` |
+| `isValid` decides exactly `Spec.Valid`: the rules of sections 5.6 and 5.7, with second 60 allowed at the end of every month. | `Spec.isValid_iff` |
 | A valid timestamp prints as the grammar writes it. | `Spec.print_eq` |
 | `parse` returns `t` exactly when `t` is valid and the string is how `t` prints, with `T` and `Z` in either case. | `Spec.parse_iff` |
 | What `parse` returns is valid: the day exists in its month, a leap second ends a month in UTC, and so on. | `Spec.parse_valid` |
 | Printing then parsing gives the timestamp back. | `Spec.parse_print` |
 | Parsing then printing gives the string back, with `T` and `Z` in upper case. | `Spec.print_parse` |
 | `unixSeconds` counts the seconds from the epoch by the calendar, with the offset applied. | `Spec.unixSeconds_eq` |
-| `compareInstant` orders timestamps by the exact instants they name. | `Spec.compareInstant_eq` |
+| `compareInstant` orders timestamps by the instants they name: UTC minute, then second, then fraction. | `Spec.compareInstant_eq` |
 | The examples of section 5.8 parse to the fields the RFC reads them as. | `Spec.rfc3339_examples` |
-| What section 5.8 says about those examples holds: two pairs name the same instant, and the first is 482196050 seconds after the epoch. | `Spec.rfc3339_example_instants` |
+| What section 5.8 says about those examples holds: two pairs name the same instant. Separately, the first is 482196050 seconds after the epoch, as Python's `calendar.timegm` gives. | `Spec.rfc3339_example_instants` |
+| A leap second comes after second 59 and before the next minute; its Unix seconds equal those of the next second. | `Spec.leap_second_order` |
 | Days outside their month are rejected, with the leap year rule of Appendix C. | `Spec.calendar_vectors` |
 | Second 60 is accepted only at the end of a month in UTC. | `Spec.leap_second_vectors` |
 | Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Spec.syntax_vectors` |

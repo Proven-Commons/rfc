@@ -4,7 +4,7 @@
   "theorem_names": [
     "Spec.isValid_iff", "Spec.print_eq", "Spec.parse_iff", "Spec.parse_valid",
     "Spec.parse_print", "Spec.print_parse", "Spec.unixSeconds_eq", "Spec.compareInstant_eq",
-    "Spec.rfc3339_examples", "Spec.rfc3339_example_instants", "Spec.calendar_vectors",
+    "Spec.rfc3339_examples", "Spec.rfc3339_example_instants", "Spec.leap_second_order", "Spec.calendar_vectors",
     "Spec.leap_second_vectors", "Spec.syntax_vectors"
   ],
   "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]

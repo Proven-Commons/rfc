@@ -43,10 +43,18 @@ def compareFraction : List Nat → List Nat → Ordering
   | a :: as, b :: bs =>
     if a < b then .lt else if b < a then .gt else compareFraction as bs
 
-/-- Orders two timestamps by the instant they name, fraction included,
-    whatever their offsets. -/
+/-- The minute the timestamp falls in, counted in UTC from
+    0000-01-01T00:00Z: local time less the offset. -/
+def Timestamp.utcMinute (t : Timestamp) : Int :=
+  ((dayNumber t.year t.month t.day * 1440 + t.hour * 60 + t.minute : Nat) : Int) -
+    offsetMinutes t.offset
+
+/-- Orders two timestamps by the instants they name, whatever their
+    offsets: by UTC minute, then by the second within it, where a leap
+    second, 60, comes after 59, then by the fraction. A minute has at
+    most 61 seconds, so `utcMinute * 61 + second` keeps that order. -/
 def Timestamp.compareInstant (a b : Timestamp) : Ordering :=
-  match compare a.unixSeconds b.unixSeconds with
+  match compare (a.utcMinute * 61 + a.second) (b.utcMinute * 61 + b.second) with
   | .eq => compareFraction a.fraction b.fraction
   | o => o
 

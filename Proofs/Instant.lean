@@ -1,8 +1,9 @@
 /-
   The instant code in `Rfc3339/Instant.lean` agrees with the definitions
   in `Spec/Defs.lean`: `unixSeconds` counts the same whole seconds as
-  `Spec.unixSeconds`, and `compareInstant` orders two valid timestamps
-  the same way as `Spec.compareInstants`.
+  `Spec.unixSeconds`, `utcMinute` is `Spec.utcMinute`, and
+  `compareInstant` orders two valid timestamps the same way as
+  `Spec.compareInstants`.
 -/
 
 import Rfc3339
@@ -16,6 +17,12 @@ open Rfc3339
 
 /-- 1970-01-01 is day 719528. -/
 theorem dayNumber_epoch : Spec.dayNumber 1970 1 1 = 719528 := by decide +kernel
+
+theorem utcMinute_eq (t : Timestamp) (h : Spec.Valid t) :
+    t.utcMinute = Spec.utcMinute t := by
+  obtain ⟨_, hm1, hm2, _⟩ := h
+  unfold Timestamp.utcMinute Spec.utcMinute
+  rw [DayNumber.dayNumber_eq _ _ _ hm1 hm2, DayNumber.offsetMinutes_eq]
 
 theorem unixSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
     t.unixSeconds = Spec.unixSeconds t := by
@@ -82,11 +89,12 @@ theorem compareInstant_eq (a b : Timestamp) (ha : Spec.Valid a) (hb : Spec.Valid
   have eP : ((10 ^ max a.fraction.length b.fraction.length : Nat) : Int) =
       (10 : Int) ^ max a.fraction.length b.fraction.length := by
     push_cast; rfl
-  unfold Timestamp.compareInstant Spec.compareInstants Spec.scaledInstant
+  unfold Timestamp.compareInstant Spec.compareInstants Spec.instantKey
   simp only
-  rw [unixSeconds_eq a ha, unixSeconds_eq b hb, Fraction.compareFraction_eq _ _ hfa hfb, ea, eb,
-    compare_scaled _ _ _ _ _ (by omega) (by rw [← eP]; omega) (by omega)
-      (by rw [← eP]; omega), compare_natCast]
-  cases compare (Spec.unixSeconds a) (Spec.unixSeconds b) <;> rfl
+  rw [utcMinute_eq a ha, utcMinute_eq b hb, Fraction.compareFraction_eq _ _ hfa hfb, ea, eb,
+    compare_scaled (Spec.utcMinute a * 61 + a.second) (Spec.utcMinute b * 61 + b.second)
+      ((10 : Int) ^ max a.fraction.length b.fraction.length) _ _ (by omega)
+      (by rw [← eP]; omega) (by omega) (by rw [← eP]; omega), compare_natCast]
+  cases compare (Spec.utcMinute a * 61 + a.second) (Spec.utcMinute b * 61 + b.second) <;> rfl
 
 end Rfc3339.Proofs.Instant

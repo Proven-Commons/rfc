@@ -29,9 +29,12 @@ Inputs come from a recorded seed:
   years under 15 offsets, at the one local minute that can be a leap
   second and at the minutes either side;
 - pairs of timestamps to order, including pairs that name the same
-  instant with different offsets or fractions;
+  instant with different offsets or fractions, leap seconds next to
+  the seconds around them, and pairs with a string that is rejected;
 - malformed requests, which the tool must answer with `error`.
 
+Every seventh request ends in CR LF. The first 20,000 parsed strings
+that can be command-line arguments are also given to `rfc3339 check`.
 For every input the Lean answer must equal the oracle's.
 
     python3 tests/run_tests.py [--seed N] [--count N]
@@ -158,7 +161,10 @@ def fromisoformat_agrees(f):
 
 
 def instant(f):
-    return f["unix"] + Fraction(int(f["fraction"] or "0"), 10 ** len(f["fraction"]))
+    """The place of the instant in UTC order: the UTC minute, the second
+    within it (a leap second, 60, after 59), then the exact fraction."""
+    minute = (f["unix"] - f["second"]) // 60
+    return (minute, f["second"], Fraction(int(f["fraction"] or "0"), 10 ** len(f["fraction"])))
 
 
 def order(a, b):
@@ -312,6 +318,25 @@ def leap_grid():
                             yield stamp(year, month, day, h, m, 60, "", text)
 
 
+def leap_pair(rng):
+    """A leap second and a nearby second: second 59 before it, or the
+    first second of the next minute, in the same or another offset."""
+    year, month = rng.randint(1972, 2100), rng.choice([6, 12, rng.randint(1, 12)])
+    last = month_length(year, month)
+    frac_a, frac_b = random_fraction(rng), random_fraction(rng)
+    off_a, off_b = random_offset_minutes(rng), random_offset_minutes(rng)
+    leap = datetime(year, month, last, 23, 59) + timedelta(minutes=off_a)
+    a = stamp(leap.year, leap.month, leap.day, leap.hour, leap.minute, 60, frac_a,
+              offset_text(off_a, rng))
+    if rng.random() < 0.5:
+        other, sec = datetime(year, month, last, 23, 59) + timedelta(minutes=off_b), 59
+    else:
+        other, sec = datetime(year, month, last, 23, 59) + timedelta(minutes=1 + off_b), 0
+    b = stamp(other.year, other.month, other.day, other.hour, other.minute, sec, frac_b,
+              offset_text(off_b, rng))
+    return (a, b) if rng.random() < 0.5 else (b, a)
+
+
 def same_instant_pair(rng):
     """Two spellings of one instant: different offsets, or a fraction
     with trailing zeros."""
@@ -351,7 +376,7 @@ MALFORMED = [
 AT_EOF = [
     ("parse " + "1985-04-12T23:20:50.52Z".encode().hex(), None),
     ("compare " + "1990-12-31T23:59:60Z".encode().hex() + " " +
-     "1991-01-01T00:00:00Z".encode().hex(), "="),
+     "1991-01-01T00:00:00Z".encode().hex(), "<"),
 ]
 
 
@@ -384,8 +409,13 @@ def cases(seed, count):
                 s = mutate(rng, base)
             label, mutated = "mutated", True
         else:
-            if rng.random() < 0.5:
+            r = rng.random()
+            if r < 0.4:
                 a, b = same_instant_pair(rng)
+            elif r < 0.6:
+                a, b = leap_pair(rng)
+            elif r < 0.65:
+                a, b = (near_miss(rng), random_valid(rng))[:: rng.choice([1, -1])]
             else:
                 a, b = random_valid(rng), random_valid(rng)
             yield ("compare", f"compare {hexed(a)} {hexed(b)}", order(a, b), False)
@@ -450,6 +480,43 @@ def run_tool(data, timeout=TIMEOUT):
     return lines, problem
 
 
+def run_check(args, timeout=300):
+    """Output lines and exit code of `rfc3339 check ARGS`."""
+    run = subprocess.run([str(EXE), "check", *args], capture_output=True, timeout=timeout)
+    return run.stdout.decode("utf-8", "backslashreplace").split("\n")[:-1], run.returncode
+
+
+def check_mode(items, limit=20000, batch=500):
+    """Runs `check` mode on the first `limit` parsed strings that can be
+    command-line arguments, in batches, and on no arguments at all. Each
+    output line must be the printed form and Unix seconds, or `invalid`
+    and the string, and the exit code 1 when any string is invalid."""
+    strings = []
+    for label, req, _, _ in items:
+        if label != "error" and req.startswith("parse ") and len(strings) < limit:
+            s = bytes.fromhex(req.split(" ")[1]).decode("utf-8")
+            if s and not any(c in s for c in "\x00\n\r"):
+                strings.append(s)
+    problems = []
+    for i in range(0, len(strings), batch):
+        args = strings[i:i + batch]
+        want = []
+        for s in args:
+            f = reference(s)
+            want.append(f"{f['print']}\t{f['unix']}" if f else f"invalid\t{s}")
+        code_want = 1 if any(w.startswith("invalid\t") for w in want) else 0
+        got, code = run_check(args)
+        if got != want or code != code_want:
+            bad = next((j for j, (g, w) in enumerate(zip(got, want)) if g != w), None)
+            where = f"line {bad}: got {got[bad]!r}, expected {want[bad]!r}" if bad is not None else ""
+            problems.append((f"check with {len(args)} arguments from {args[0]!r}",
+                             f"exit {code_want}", f"exit {code} {where}".strip()))
+    got, code = run_check([])
+    if code != 2 or got:
+        problems.append(("check with no arguments", "usage and exit 2", f"exit {code}, {got[:2]}"))
+    return len(strings), problems
+
+
 def oracle():
     return (f"Python {platform.python_version()} `datetime` and `calendar`, and the "
             f"RFC 3339 rules copied into this script")
@@ -498,7 +565,9 @@ def main():
         sys.exit("lake build rfc3339 failed:\n" + log)
 
     items = list(cases(args.seed, args.count))
-    out, problem = run_tool("".join(req + "\n" for _, req, _, _ in items))
+    # Every seventh request ends in CR LF, which the tool must take as LF.
+    out, problem = run_tool("".join(req + ("\r\n" if i % 7 == 6 else "\n")
+                                    for i, (_, req, _, _) in enumerate(items)))
     failures = [("(whole run)", "a clean run", problem)] if problem else []
     for item, got in itertools.zip_longest(items, out):
         if item is None:
@@ -518,6 +587,9 @@ def main():
             checked += 1
             if not agrees:
                 failures.append((req, "datetime.fromisoformat to agree", s))
+
+    check_args, check_problems = check_mode(items)
+    failures += check_problems
 
     eof_right = 0
     for req, want in AT_EOF:
@@ -559,6 +631,9 @@ def main():
         f"instant, {orders.count('>')} after, {orders.count('REJECT')} with a string rejected)",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
+        f"- Requests ending in CR LF: every seventh, {len(items) // 7}",
+        f"- Strings also given to `rfc3339 check` as arguments, in batches of 500: {check_args}, "
+        f"and once with no arguments",
         f"- Last lines with no LF, sent alone, answered right: {eof_right} of {len(AT_EOF)}",
         f"- Failures: {len(failures)}",
         "",

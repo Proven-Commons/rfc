@@ -120,6 +120,21 @@ theorem Spec.rfc3339_example_instants :
       ((Spec.isValid_iff _).mp (by decide))]
     decide +kernel
 
+theorem Spec.leap_second_order :
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 59, [9], .z⟩
+      ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ = .lt ∧
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 60, [5], .z⟩
+      ⟨1991, 1, 1, 0, 0, 0, [2], .z⟩ = .lt ∧
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 60, [], .z⟩
+      ⟨1991, 1, 1, 0, 0, 0, [], .z⟩ = .lt ∧
+    Timestamp.unixSeconds ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ =
+      Timestamp.unixSeconds ⟨1991, 1, 1, 0, 0, 0, [], .z⟩ := by
+  refine ⟨?_, ?_, ?_, by decide⟩
+  all_goals
+    rw [Spec.compareInstant_eq _ _ ((Spec.isValid_iff _).mp (by decide))
+      ((Spec.isValid_iff _).mp (by decide))]
+    decide +kernel
+
 theorem Spec.calendar_vectors :
     (parse "2000-02-29T00:00:00Z").isSome ∧
     (parse "2004-02-29T00:00:00Z").isSome ∧

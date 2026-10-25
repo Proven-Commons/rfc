@@ -149,11 +149,12 @@ def Spec.utcMinute (t : Timestamp) : Int :=
   ((Spec.dayNumber t.year t.month t.day * 1440 + t.hour * 60 + t.minute : Nat) : Int) -
     Spec.offsetMinutes t.offset
 
-/-- Section 5.7: `time-second` may be 60 at the end of a month, and in
-    other time zones "the leap second point is shifted by the zone
-    offset (so it happens at the same instant around the globe)". So the
-    minute the leap second falls in, in UTC, is the last one before a
-    month begins. -/
+/-- Section 5.7: `time-second` may be 60 "at the end of months in which
+    a leap second occurs", and in other time zones "the leap second point
+    is shifted by the zone offset (so it happens at the same instant
+    around the globe)". So the minute the leap second falls in, in UTC,
+    is the last one before a month begins. No table of the months that
+    had a leap second is kept, so every month is allowed. -/
 def Spec.LeapSecondAllowed (t : Timestamp) : Prop :=
   ∃ y m, 1 ≤ m ∧ m ≤ 12 ∧ Spec.utcMinute t + 1 = ((Spec.dayNumber y m 1 * 1440 : Nat) : Int)
 
@@ -183,13 +184,17 @@ def Spec.fractionValue (ds : List Nat) : Nat :=
 
 example : Spec.fractionValue [0, 5, 2] = 52 := by decide
 
-/-- The instant in units of `10 ^ (-k)` seconds from the epoch, for `k`
-    at least the number of fraction digits. -/
-def Spec.scaledInstant (t : Timestamp) (k : Nat) : Int :=
-  Spec.unixSeconds t * 10 ^ k + Spec.fractionValue t.fraction * 10 ^ (k - t.fraction.length)
+/-- The place of the timestamp's instant in UTC order, in units of
+    `10 ^ (-k)` seconds, for `k` at least the number of fraction digits.
+    Each UTC minute has 61 places for seconds 0 to 60, so a leap second
+    comes after second 59 of its minute and before the next minute.
+    Only the order of these numbers is used, not their size. -/
+def Spec.instantKey (t : Timestamp) (k : Nat) : Int :=
+  (Spec.utcMinute t * 61 + t.second) * 10 ^ k +
+    Spec.fractionValue t.fraction * 10 ^ (k - t.fraction.length)
 
-/-- The order of the instants two timestamps name, compared exactly in
-    a unit fine enough for both fractions. -/
+/-- The order of the instants two timestamps name: by UTC minute, then
+    by the second within it, then by the fraction, compared exactly. -/
 def Spec.compareInstants (a b : Timestamp) : Ordering :=
   let k := max a.fraction.length b.fraction.length
-  compare (Spec.scaledInstant a k) (Spec.scaledInstant b k)
+  compare (Spec.instantKey a k) (Spec.instantKey b k)

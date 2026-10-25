@@ -19,7 +19,10 @@ open Rfc3339
 
 /-! ## Validity -/
 
-/-- `isValid` decides exactly the rules of sections 5.6 and 5.7. -/
+/-- `isValid` decides exactly `Spec.Valid`: the rules of sections 5.6
+    and 5.7, except that second 60 is allowed at the end of every month
+    in UTC, since no table of the months that had a leap second is
+    kept. -/
 theorem Spec.isValid_iff (t : Timestamp) : t.isValid = true ↔ Spec.Valid t := sorry
 
 /-! ## Printing -/
@@ -33,8 +36,8 @@ theorem Spec.print_eq (t : Timestamp) (h : Spec.Valid t) :
 
 /-- `parse` returns `t` exactly when `t` is valid and the string is how
     `t` is written, with `T` and `Z` in either case. So it accepts
-    nothing outside the grammar and rules of RFC 3339, rejects nothing
-    inside them, and returns the fields as written. -/
+    nothing outside the grammar of section 5.6 and `Spec.Valid`, rejects
+    nothing inside them, and returns the fields as written. -/
 theorem Spec.parse_iff (s : String) (t : Timestamp) :
     parse s = some t ↔ Spec.Valid t ∧ s.toList.map Spec.asciiUpper = Spec.render t := sorry
 
@@ -59,8 +62,9 @@ theorem Spec.print_parse (s : String) (t : Timestamp) (h : parse s = some t) :
 theorem Spec.unixSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
     t.unixSeconds = Spec.unixSeconds t := sorry
 
-/-- `compareInstant` orders two timestamps by the exact instants they
-    name, fraction included. -/
+/-- `compareInstant` orders two timestamps by the instants they name,
+    whatever their offsets: by UTC minute, then by the second within it,
+    where a leap second comes after 59, then by the fraction. -/
 theorem Spec.compareInstant_eq (a b : Timestamp) (ha : Spec.Valid a) (hb : Spec.Valid b) :
     a.compareInstant b = Spec.compareInstants a b := sorry
 
@@ -77,14 +81,28 @@ theorem Spec.rfc3339_examples :
       some ⟨1937, 1, 1, 12, 0, 27, [8, 7], .plus 0 20⟩ := sorry
 
 /-- What section 5.8 says about those examples: the second is "equivalent
-    to 1996-12-20T00:39:57Z", the fourth is "the same leap second" as the
-    third, and the first is 482196050 seconds after the epoch. -/
+    to 1996-12-20T00:39:57Z", and the fourth is "the same leap second" as
+    the third. And a count worked out apart from the RFC, by Python's
+    `calendar.timegm`: the first is 482196050 seconds after the epoch. -/
 theorem Spec.rfc3339_example_instants :
     (Timestamp.compareInstant ⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩
       ⟨1996, 12, 20, 0, 39, 57, [], .z⟩ = .eq) ∧
     (Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 60, [], .z⟩
       ⟨1990, 12, 31, 15, 59, 60, [], .minus 8 0⟩ = .eq) ∧
     Timestamp.unixSeconds ⟨1985, 4, 12, 23, 20, 50, [5, 2], .z⟩ = 482196050 := sorry
+
+/-- A leap second comes after second 59 of its minute and before the
+    next minute, fraction included. Unix seconds, as in POSIX time, give
+    it the same count as the second after it. -/
+theorem Spec.leap_second_order :
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 59, [9], .z⟩
+      ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ = .lt ∧
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 60, [5], .z⟩
+      ⟨1991, 1, 1, 0, 0, 0, [2], .z⟩ = .lt ∧
+    Timestamp.compareInstant ⟨1990, 12, 31, 23, 59, 60, [], .z⟩
+      ⟨1991, 1, 1, 0, 0, 0, [], .z⟩ = .lt ∧
+    Timestamp.unixSeconds ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ =
+      Timestamp.unixSeconds ⟨1991, 1, 1, 0, 0, 0, [], .z⟩ := sorry
 
 /-- Days outside their month, and the leap year rule of Appendix C. -/
 theorem Spec.calendar_vectors :

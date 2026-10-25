@@ -4,8 +4,8 @@
 Unlike tests/run_tests.py, this is not part of the verified bar and is
 not run in CI. It records where other parsers read RFC 3339 differently,
 which is the reason the RFC's rules are proved here. It needs Go, and
-the `rfc3339-validator` package that `jsonschema` uses to check the
-`date-time` format:
+the `rfc3339-validator` package, which `jsonschema` calls on the
+upper-cased string to check the `date-time` format:
 
     pip install rfc3339-validator==0.1.4
     python3 tests/cross_check.py [--seed N] [--count N]
@@ -143,7 +143,8 @@ def main():
         f"- This project: the `rfc3339` tool, as tested in TEST-RESULTS.md",
         f"- Go: `time.Parse(time.RFC3339Nano, s)`, {go_version()}",
         f"- rfc3339-validator {version('rfc3339-validator')} (Python {platform.python_version()}), "
-        "the `date-time` check of `jsonschema`",
+        "called on the string as given. `jsonschema` calls it for its `date-time` check on the "
+        "upper-cased string, so the lower case rows below do not apply to `jsonschema`.",
         f"- Seed: {args.seed}",
         f"- Strings: {len(strings)}",
         f"- Strings both this project and Go accept, read to a different instant: {len(value_mismatch)}",
