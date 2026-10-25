@@ -1,0 +1,16 @@
+name = "rfc3339"
+version = "0.1.0"
+defaultTargets = ["Rfc3339", "Spec", "Proofs", "rfc3339"]
+
+[[lean_lib]]
+name = "Rfc3339"
+
+[[lean_lib]]
+name = "Spec"
+
+[[lean_lib]]
+name = "Proofs"
+
+[[lean_exe]]
+name = "rfc3339"
+root = "Main"
