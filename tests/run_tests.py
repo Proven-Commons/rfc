@@ -25,9 +25,12 @@ Inputs come from a recorded seed:
   replaced by a non-ASCII digit, a line break or NUL put in. A mutation
   that leaves the string unchanged is drawn again;
 - every day from 0 to 32 of every month from 0 to 13 in years chosen
-  for the leap year rule, and second 60 at every month end of three
-  years under 15 offsets, at the one local minute that can be a leap
-  second and at the minutes either side;
+  for the leap year rule, and second 60 at every month end of five
+  years, 0000 and 9999 among them, under 15 offsets, at the one local
+  minute that can be a leap second and at the minutes either side;
+- 0000-01-01 and 9999-12-31 under offsets that move the UTC date out
+  of years 0000 to 9999, near both ends of the day, with seconds 0, 59
+  and 60, each parsed and each compared with the next;
 - pairs of timestamps to order, including pairs that name the same
   instant with different offsets or fractions, leap seconds next to
   the seconds around them, and pairs with a string that is rejected;
@@ -302,7 +305,7 @@ def day_grid():
 
 def leap_grid():
     offsets = [-1439, -720, -481, -480, -60, -1, 0, 1, 60, 330, 345, 720, 1439]
-    for year in [1990, 2000, 2001]:
+    for year in [0, 1990, 2000, 2001, 9999]:
         for month in range(1, 13):
             last = month_length(year, month)
             for day in sorted({1, 2, last - 1, last}):
@@ -337,6 +340,21 @@ def leap_pair(rng):
     return (a, b) if rng.random() < 0.5 else (b, a)
 
 
+def edge_grid():
+    """The first and last days of the range, where an offset moves the
+    UTC date outside years 0000 to 9999: local minutes near each end of
+    the day and near the offset, with seconds 0, 59 and 60."""
+    for year, month, day in [(0, 1, 1), (9999, 12, 31)]:
+        for off in [1, -1, 61, -61, 1439, -1439]:
+            a = abs(off)
+            for minute_of_day in sorted({0, 1, a - 1, a, 1440 - a - 1, 1440 - a, 1438, 1439}):
+                h, m = divmod(minute_of_day % 1440, 60)
+                for second in (0, 59, 60):
+                    sign = "+" if off > 0 else "-"
+                    yield stamp(year, month, day, h, m, second, "",
+                                f"{sign}{a // 60:02d}:{a % 60:02d}")
+
+
 def same_instant_pair(rng):
     """Two spellings of one instant: different offsets, or a fraction
     with trailing zeros."""
@@ -368,6 +386,10 @@ MALFORMED = [
     ("parse 30 30", "two arguments to parse"),
     ("compare 30", "one argument to compare"),
     ("compare 30 30 30", "three arguments to compare"),
+    ("compare 3 30", "odd hex in the first string to compare"),
+    ("compare 30 3A", "upper case hex in the second string to compare"),
+    ("compare 30 ff", "not UTF-8 in the second string to compare"),
+    ("compare c0af 30", "an overlong encoding in the first string to compare"),
     (" parse 30", "a leading space"),
     ("parse  30", "two spaces"),
 ]
@@ -388,8 +410,11 @@ def cases(seed, count):
     """(label, request, expected answer, mutated) for each input."""
     rng = random.Random(seed)
     fixed = []
-    for s in itertools.chain(day_grid(), leap_grid()):
+    for s in itertools.chain(day_grid(), leap_grid(), edge_grid()):
         fixed.append(("grid", f"parse {hexed(s)}", answer(reference(s)), False))
+    edges = list(edge_grid())
+    for a, b in zip(edges, edges[1:]):
+        fixed.append(("compare", f"compare {hexed(a)} {hexed(b)}", order(a, b), False))
     for req, _ in MALFORMED:
         fixed.append(("error", req, "error", False))
     made = 0
