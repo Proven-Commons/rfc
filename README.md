@@ -20,6 +20,7 @@ For each timestamp it prints the timestamp as written, with `T` and `Z` in upper
 - `Timestamp.isValid`
 - `Timestamp.unixSeconds`
 - `Timestamp.compareInstant`
+- `Rfc3339.fromUnixSeconds`
 
 `SPEC.md` says what each one does.
 
@@ -39,13 +40,16 @@ The statements are in `Spec.lean`. The definitions they use, written from the RF
 | `compareInstant` orders two timestamps by the instants they name, whatever their offsets: by UTC minute, then by the second within it, where a leap second comes after 59, then by the fraction, compared exactly. | `Spec.compareInstant_eq` |
 | The examples of section 5.8 parse to the fields the RFC gives. What the RFC says about them holds: `1996-12-19T16:39:57-08:00` is the instant `1996-12-20T00:39:57Z`, and `1990-12-31T15:59:60-08:00` is the same leap second as `1990-12-31T23:59:60Z`. Separately, `1985-04-12T23:20:50.52Z` is 482196050 seconds after the epoch, as Python's `calendar.timegm` also gives. | `Spec.rfc3339_examples`, `Spec.rfc3339_example_instants` |
 | A leap second comes after second 59 and before the next minute, fraction included. Its Unix seconds equal those of the second after it. | `Spec.leap_second_order` |
+| `fromUnixSeconds` turns whole seconds since the epoch back into a timestamp: the one that is valid, in UTC, with no fraction and no leap second, and names those seconds. Its date arithmetic is checked against the same day count. | `Spec.fromUnixSeconds_iff` |
+| `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z, and `none` outside them. | `Spec.fromUnixSeconds_isSome` |
+| `fromUnixSeconds` gives the epoch, the section 5.8 example, 2000-02-29, 2038-01-19T03:14:07Z for the last second of a signed 32-bit count, the second before the epoch, and both ends of the range, and gives `none` one second past each end. | `Spec.fromUnixSeconds_vectors` |
 | The calendar, leap second, and syntax cases: 29 February in 1900, 2000 and 2001; second 60 at and away from a month's end; lower case `t` and `z`; a space for `T`; a comma; an offset of `+24:00`; trailing text. | `Spec.calendar_vectors`, `Spec.leap_second_vectors`, `Spec.syntax_vectors` |
 
 The command-line tool in `Main.lean` calls these functions directly.
 
 ## What is not proved
 
-- Reading requests and printing answers in `Main.lean`: the hex decoding and UTF-8 check in `serve` mode, the arguments, output and exit codes of `check` mode, and the decimal printing of numbers. The differential tests cover them, with malformed requests and CR LF line endings.
+- Reading requests and printing answers in `Main.lean`: the hex decoding and UTF-8 check in `serve` mode, the arguments, output and exit codes of `check` mode, and the decimal printing of numbers and reading of the numbers `fromunix` takes. The differential tests cover them, with malformed requests and CR LF line endings.
 - Whether a leap second was announced. Second 60 is accepted at 23:59 UTC at the end of any month, without a table of leap seconds, where section 5.7 allows it only at the end of months in which a leap second occurs. Second 59 is always accepted, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened.
 - Unix seconds at a leap second. They count second 60 as the first second of the next minute, as POSIX time does, so a leap second and the second after it give the same number. `compareInstant` does not use them, and puts the leap second first.
 - Forms outside RFC 3339 are not supported, by design:
@@ -95,7 +99,7 @@ The test script compares the tool with Python's `datetime` and `calendar` module
 ## Layout
 
 - `Rfc3339/Types.lean`: the timestamp and offset types. It is part of the specification.
-- `Rfc3339/Calendar.lean`, `Rfc3339/Format.lean`, `Rfc3339/Instant.lean`: the code under proof.
+- `Rfc3339/Calendar.lean`, `Rfc3339/Format.lean`, `Rfc3339/Instant.lean`, `Rfc3339/FromUnix.lean`: the code under proof.
 - `Spec.lean`: the statements, with `sorry` for proofs. A reviewer approves this file.
 - `Spec/Defs.lean`: the definitions the statements use, written from the RFC, with checks against its tables and known day counts.
 - `Proofs.lean` and `Proofs/`: the proofs, under the same names.

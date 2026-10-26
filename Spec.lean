@@ -140,3 +140,37 @@ theorem Spec.syntax_vectors :
     parse "1985-04-12T23:20:50" = none ∧
     parse "1985-04-12T23:20:50Z " = none ∧
     parse "1985-04-12T24:00:00Z" = none := sorry
+
+/-! ## From Unix seconds -/
+
+/-- `fromUnixSeconds s` is the one timestamp that is valid, in UTC
+    (offset `Z`), with no fraction and no leap second, and that names
+    the second `s`. -/
+theorem Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
+    Rfc3339.fromUnixSeconds s = some t ↔
+      Spec.Valid t ∧ t.offset = .z ∧ t.fraction = [] ∧ t.second ≤ 59 ∧
+        Spec.unixSeconds t = s := sorry
+
+/-- It gives a timestamp exactly for the seconds from
+    0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z, the years RFC 3339
+    allows. -/
+theorem Spec.fromUnixSeconds_isSome (s : Int) :
+    (Rfc3339.fromUnixSeconds s).isSome ↔
+      Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ≤ s ∧
+        s ≤ Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
+
+/-- The epoch; the example of section 5.8; a leap day; the last second a
+    signed 32-bit count reaches; the second before the epoch; the ends of
+    the range, and one second past each. -/
+theorem Spec.fromUnixSeconds_vectors :
+    Rfc3339.fromUnixSeconds 0 = some ⟨1970, 1, 1, 0, 0, 0, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds 482196050 = some ⟨1985, 4, 12, 23, 20, 50, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds 951782400 = some ⟨2000, 2, 29, 0, 0, 0, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds 2147483647 = some ⟨2038, 1, 19, 3, 14, 7, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-1) = some ⟨1969, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 ∧
+    Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 ∧
+    Rfc3339.fromUnixSeconds (-62167219200) = some ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds 253402300799 = some ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-62167219201) = none ∧
+    Rfc3339.fromUnixSeconds 253402300800 = none := sorry

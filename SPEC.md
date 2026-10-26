@@ -44,9 +44,15 @@ POSIX time has no number for a leap second. As in POSIX time, second 60 is count
 
 `Timestamp.compareInstant` orders two valid timestamps by the instants they name, whatever their offsets: by UTC minute, then by the second within it, where a leap second, 60, comes after 59, then by the fraction, compared exactly. It does not use Unix seconds, so `1990-12-31T23:59:60Z` comes before `1991-01-01T00:00:00Z`. It gives `eq` when the instants are equal, as for `2000-01-01T00:00:00.5Z` and `2000-01-01T01:00:00.500+01:00`.
 
+## From Unix seconds
+
+`fromUnixSeconds` goes the other way: from whole seconds since 1970-01-01T00:00:00Z to the UTC timestamp for that second. Its result is valid, has offset `Z`, no fraction, and a second of at most 59, and names exactly the second it was given. Each second has exactly one such timestamp, and this is it. A leap second is never a result, since its number is the same as the next second's.
+
+It covers every second from `0000-01-01T00:00:00Z` (-62167219200) to `9999-12-31T23:59:59Z` (253402300799), the years RFC 3339 allows, and returns `none` outside them. So `fromUnixSeconds t.unixSeconds` puts any valid timestamp, whatever its offset, into UTC, dropping its fraction, unless that moves it outside those years.
+
 ## Errors
 
-`parse` returns `none` for any string it does not accept. No function can fail any other way.
+`parse` returns `none` for any string it does not accept, and `fromUnixSeconds` for any number outside the years 0000 to 9999. No function can fail any other way.
 
 ## The command-line tool
 
@@ -55,7 +61,7 @@ The command-line tool in `Main.lean` has two modes:
 - `rfc3339 check TIMESTAMP...` prints each timestamp's printed form and its Unix seconds, or `invalid`. It exits with 1 when any timestamp is invalid.
 - `rfc3339 serve` answers requests from the differential tests, one per line. Each string is sent as the hex digits of its UTF-8 bytes. The header comment of `Main.lean` gives the protocol.
 
-Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds` and `Timestamp.compareInstant`.
+Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant` and `fromUnixSeconds`.
 
 ## What must always hold
 
@@ -77,11 +83,15 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | Days outside their month are rejected, with the leap year rule of Appendix C. | `Spec.calendar_vectors` |
 | Second 60 is accepted only at the end of a month in UTC. | `Spec.leap_second_vectors` |
 | Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Spec.syntax_vectors` |
+| `fromUnixSeconds s` is `t` exactly when `t` is valid, in UTC, with no fraction and a second of at most 59, and names `s`. | `Spec.fromUnixSeconds_iff` |
+| `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z. | `Spec.fromUnixSeconds_isSome` |
+| The epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
 
 Together, these fix every output for valid input.
 
 - `parse` is fixed for every string.
 - `print`, `unixSeconds` and `compareInstant` are fixed for every valid timestamp. The parser gives only valid timestamps.
+- `fromUnixSeconds` is fixed for every number, by `Spec.fromUnixSeconds_iff` and `Spec.fromUnixSeconds_isSome`.
 - A parser that accepted nothing would meet `Spec.parse_valid`, but it would fail `Spec.parse_iff` and `Spec.parse_print`.
 - A parser that accepted too much would fail `Spec.parse_iff`.
 
@@ -89,5 +99,5 @@ Together, these fix every output for valid input.
 
 The differential tests compare the tool with two oracles:
 
-- Python's `datetime` and `calendar` modules: month lengths, offset arithmetic, seconds since the epoch, and `datetime.fromisoformat` on every accepted string it can hold.
+- Python's `datetime` and `calendar` modules: month lengths, offset arithmetic, seconds since the epoch, `datetime.fromisoformat` on every accepted string it can hold, and the UTC timestamp for a number of seconds. `datetime` holds no year 0, so dates there are moved by 400 years, one cycle of the Gregorian calendar, for the arithmetic.
 - A copy of the rules above, written in Python from the RFC.

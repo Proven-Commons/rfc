@@ -34,6 +34,13 @@ Inputs come from a recorded seed:
 - pairs of timestamps to order, including pairs that name the same
   instant with different offsets or fractions, leap seconds next to
   the seconds around them, and pairs with a string that is rejected;
+- Unix seconds to turn back into timestamps: the ends of the range and
+  one second past each, the first second of every month of years
+  chosen for the leap year rule and of every year from 0000 to 9999,
+  with the seconds either side, random
+  seconds in and around the range, and the seconds of valid timestamps.
+  `datetime` arithmetic gives the expected UTC timestamp, with year 0
+  moved by 400 years as above;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
@@ -77,6 +84,48 @@ EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 # date a day away, are moved by 400 years for the arithmetic, and the
 # seconds moved back.
 CYCLE_DAYS = 146097
+
+
+# 0000-01-01T00:00:00Z and 9999-12-31T23:59:59Z in Unix seconds.
+FIRST, LAST = -62167219200, 253402300799
+
+
+def unix_of(year, month, day, hour=0, minute=0, second=0):
+    """Seconds since the epoch of a UTC date and time, by `datetime`."""
+    moved, days = shifted(year)
+    delta = datetime(moved, month, day, hour, minute, second, tzinfo=timezone.utc) - EPOCH
+    return (delta.days - days) * 86400 + delta.seconds
+
+
+def from_unix(n):
+    """The expected answer to `fromunix n`: the UTC timestamp, by
+    `datetime` arithmetic, or NONE outside years 0000 to 9999."""
+    if not FIRST <= n <= LAST:
+        return "NONE"
+    shift = 0
+    if n < unix_of(2, 1, 1):
+        n, shift = n + CYCLE_DAYS * 86400, 400
+    d = EPOCH + timedelta(seconds=n)
+    return (f"{d.year - shift:04d}-{d.month:02d}-{d.day:02d}T"
+            f"{d.hour:02d}:{d.minute:02d}:{d.second:02d}Z")
+
+
+def unix_grid():
+    """The ends of the range and one second past each, numbers at the
+    edges of 32-bit counts, and the first second of every month of years
+    chosen for the leap year rule, with the seconds either side."""
+    yield from (FIRST - 1, FIRST, FIRST + 1, LAST - 1, LAST, LAST + 1, 0, -1, 1,
+                2 ** 31 - 1, 2 ** 31, -2 ** 31, 2 ** 32, 10 ** 20, -10 ** 20)
+    for year in (0, 1, 3, 4, 99, 100, 101, 399, 400, 1582, 1600, 1700, 1800, 1900, 1969,
+                 1970, 2000, 2024, 2100, 2400, 9996, 9998, 9999):
+        for month in range(2, 13):
+            start = unix_of(year, month, 1)
+            yield from (start - 1, start, start + 1)
+    # The first second of every year, and the seconds either side: where
+    # a year begins against where an average year would put it.
+    for year in range(10000):
+        start = unix_of(year, 1, 1)
+        yield from (start - 1, start, start + 1)
 
 
 def month_length(year, month):
@@ -392,6 +441,15 @@ MALFORMED = [
     ("compare c0af 30", "an overlong encoding in the first string to compare"),
     (" parse 30", "a leading space"),
     ("parse  30", "two spaces"),
+    ("fromunix", "no number"),
+    ("fromunix 1 2", "two numbers"),
+    ("fromunix 1_000", "an underscore"),
+    ("fromunix +1", "a plus sign"),
+    ("fromunix -", "a sign alone"),
+    ("fromunix --1", "two signs"),
+    ("fromunix 1.5", "a fraction"),
+    ("fromunix 0x10", "hex"),
+    ("fromunix \u0663", "a digit that is not ASCII"),
 ]
 
 # A last line with no LF must still be answered.
@@ -415,6 +473,8 @@ def cases(seed, count):
     edges = list(edge_grid())
     for a, b in zip(edges, edges[1:]):
         fixed.append(("compare", f"compare {hexed(a)} {hexed(b)}", order(a, b), False))
+    for n in unix_grid():
+        fixed.append(("fromunix", f"fromunix {n}", from_unix(n), False))
     for req, _ in MALFORMED:
         fixed.append(("error", req, "error", False))
     made = 0
@@ -422,6 +482,24 @@ def cases(seed, count):
         yield item
         made += 1
     while made < count:
+        r = rng.random()
+        if r < 0.1:
+            r = rng.random()
+            if r < 0.3:
+                n = rng.randint(FIRST - 10 ** 7, LAST + 10 ** 7)
+            elif r < 0.4:
+                # Near an end of the range, on either side.
+                n = rng.choice([FIRST, LAST]) + rng.randint(-10 ** 5, 10 ** 5)
+            elif r < 0.7:
+                # The second before, at or after a midnight.
+                n = FIRST + rng.randint(-1, (LAST - FIRST) // 86400 + 1) * 86400 + rng.choice([-1, 0, 1])
+            else:
+                # The seconds of a valid timestamp, which name its instant.
+                f = reference(random_valid(rng))
+                n = f["unix"] if f else rng.randint(FIRST, LAST)
+            yield ("fromunix", f"fromunix {n}", from_unix(n), False)
+            made += 1
+            continue
         r = rng.random()
         if r < 0.35:
             s, label, mutated = random_valid(rng), "valid", False
@@ -634,6 +712,7 @@ def main():
     accepted = sum(1 for w in parsed if w.startswith("OK"))
     leap = sum(1 for w in parsed if w.startswith("OK") and w.split("\t")[8] == "60")
     orders = [want for label, _, want, _ in items if label == "compare"]
+    from_unix_wants = [want for label, _, want, _ in items if label == "fromunix"]
     mutated = sum(1 for item in items if item[3])
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
 
@@ -654,6 +733,8 @@ def main():
         f"offset and seconds: {checked}",
         f"- Pairs ordered: {len(orders)} ({orders.count('<')} before, {orders.count('=')} same "
         f"instant, {orders.count('>')} after, {orders.count('REJECT')} with a string rejected)",
+        f"- Unix seconds turned back into timestamps: {len(from_unix_wants)}, of which "
+        f"{from_unix_wants.count('NONE')} outside years 0000 to 9999",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",
