@@ -22,6 +22,22 @@
                       seconds since the epoch, or NONE when it falls
                       outside the years 0000 to 9999; N is decimal, with
                       an optional leading `-`
+    known HEX         prints  OK, then tab-separated: SI seconds since
+                      1972-01-01T00:00:00Z (before 1972, Unix seconds
+                      less 63072000) and TAI - UTC (`-` before
+                      1972, when TAI - UTC was not a whole number of
+                      seconds); NOLEAP when the timestamp is valid but
+                      its second 60 is not a leap second of the table;
+                      or REJECT
+    fromsi N          prints  the printed form of the UTC timestamp N SI
+                      seconds after 1972-01-01T00:00:00Z, with second 60
+                      at a leap second, or NONE outside 1972 to 9999
+    ixdtf HEX         prints  OK, then tab-separated: the printed form of
+                      the RFC 9557 string, whether the example
+                      application of `Spec.exampleProcessor` must treat
+                      it as erroneous (`true` or `false`), and the values
+                      of the first `u-ca` tag joined by `-`, or `-`;
+                      or REJECT
 
   A malformed request prints `error`: an unknown operation, hex digits
   that are not in pairs, bytes that are not UTF-8, or a number that is
@@ -30,11 +46,15 @@
 
   Every answer comes from the proved functions in `Rfc3339/`: `parse`,
   `Timestamp.print`, `Timestamp.unixSeconds`,
-  `Timestamp.compareInstant` and `fromUnixSeconds`. The hex decoding and the request handling
+  `Timestamp.compareInstant`, `fromUnixSeconds`,
+  `Timestamp.isValidKnown`, `Timestamp.siSeconds`,
+  `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`,
+  `Ext.erroneous` and `Ext.lookup`. The hex decoding and the request handling
   here are covered by the tests, not by a proof.
 -/
 
 import Rfc3339
+import Spec.Ixdtf
 
 open Rfc3339
 
@@ -91,6 +111,29 @@ def request (line : String) : Option String :=
   | ["fromunix", n] => do
     let s ← decimal n
     pure <| match fromUnixSeconds s with
+      | some t => t.print
+      | none => "NONE"
+  | ["known", h] => do
+    let s ← fromHex h
+    pure <| match parse s with
+      | some t =>
+        if t.isValidKnown then
+          let tai := if 63072000 ≤ t.unixSeconds then toString t.taiMinusUtc else "-"
+          s!"OK\t{t.siSeconds}\t{tai}"
+        else "NOLEAP"
+      | none => "REJECT"
+  | ["ixdtf", h] => do
+    let s ← fromHex h
+    pure <| match parseExt s with
+      | some e =>
+        let cal := match e.lookup "u-ca".toList with
+          | some t => String.ofList (['-'].intercalate t.values)
+          | none => "-"
+        s!"OK\t{e.print}\t{e.erroneous Spec.exampleProcessor}\t{cal}"
+      | none => "REJECT"
+  | ["fromsi", n] => do
+    let s ← decimal n
+    pure <| match fromSiSeconds s with
       | some t => t.print
       | none => "NONE"
   | _ => none

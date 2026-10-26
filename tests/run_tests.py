@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Differential tests: the Lean parser against Python's date code.
 
-There are two oracles:
+For RFC 3339 itself there are two oracles:
 
 - Python's `datetime` and `calendar` modules. `calendar.isleap` and
   `calendar.mdays` give the month lengths, `datetime` arithmetic applies
@@ -41,6 +41,30 @@ Inputs come from a recorded seed:
   seconds in and around the range, and the seconds of valid timestamps.
   `datetime` arithmetic gives the expected UTC timestamp, with year 0
   moved by 400 years as above;
+- for the leap second table, a third oracle: tzdata's
+  `leap-seconds.list`, read here line by line, apart from the Lean code.
+  `known` requests must give the SI seconds and TAI − UTC it implies,
+  or NOLEAP for a second 60 it does not list. The inputs are 23:59:58,
+  23:59:59, 23:59:60 and the next 00:00:00 at every month end from 1970
+  to 2030, in UTC and spelled under seven offsets, and random valid
+  timestamps, near misses and mutated strings, which `known` must refuse
+  wherever `parse` does. `fromsi` requests take every leap second's SI seconds and
+  the two seconds either side, the ends of the range and one past each,
+  random numbers, and the SI seconds of random timestamps;
+- for RFC 9557, the Internet Extended Date/Time Format, a fourth
+  oracle: its grammar (section 4.1) and its rules for elective and
+  critical tags (sections 3.2 to 3.4), written again in this script.
+  `ixdtf` requests must give the printed form, whether the example
+  application must treat the string as erroneous, and the first `u-ca`
+  tag. The inputs are every example of sections 1.2, 3.3, 3.4 and 4.2, the
+  edges of the grammar and rules written out below,
+  random timestamps with random suffixes (time zones by name and by
+  offset, tags with known, unknown and experimental keys, each item
+  elective or critical, keys repeated), and those suffixes mutated: a
+  character changed, dropped or added, brackets, `!` and `=` among them,
+  the first bracket dropped or a last one left open, a key in upper
+  case, `.` or `..` as a zone part, an empty item or value, a time zone
+  after a tag;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
@@ -108,6 +132,277 @@ def from_unix(n):
     d = EPOCH + timedelta(seconds=n)
     return (f"{d.year - shift:04d}-{d.month:02d}-{d.day:02d}T"
             f"{d.hour:02d}:{d.minute:02d}:{d.second:02d}Z")
+
+
+# The leap second table: tzdata's leap-seconds.list, read here, apart from
+# the Lean code. Each line: an NTP time, and TAI - UTC from then on.
+LEAP_FILE = Path("/usr/share/zoneinfo/leap-seconds.list")
+NTP_UNIX = 2208988800
+EPOCH_1972 = 63072000
+
+
+def leap_table():
+    if not LEAP_FILE.exists():
+        sys.exit(f"needs tzdata's {LEAP_FILE}, the leap second table the tests check against")
+    rows, expires = [], None
+    for line in LEAP_FILE.read_text().splitlines():
+        if line.startswith("#$"):
+            LEAP_FILE_INFO["updated"] = int(line.split()[1])
+        elif line.startswith("#h"):
+            LEAP_FILE_INFO["hash"] = " ".join(line.split()[1:])
+        elif line.startswith("#@"):
+            expires = int(line.split()[1])
+        elif line.strip() and not line.startswith("#"):
+            ntp, off = line.split()[:2]
+            rows.append((int(ntp), int(off)))
+    return rows, expires
+
+
+LEAP_FILE_INFO = {}
+LEAP_TABLE, LEAP_EXPIRES = leap_table()
+# The Unix seconds of the midnight after each leap second, which is also
+# what Unix seconds give the leap second itself.
+LEAP_MIDNIGHTS = [ntp - NTP_UNIX for ntp, _ in LEAP_TABLE[1:]]
+# The SI seconds since 1972 of each leap second.
+LEAP_SI = [m - EPOCH_1972 + i for i, m in enumerate(LEAP_MIDNIGHTS)]
+
+
+def known(s):
+    """The expected answer to `known`: SI seconds since 1972 and TAI - UTC
+    by the table, NOLEAP for a second 60 the table does not list, or
+    REJECT."""
+    f = reference(s)
+    if f is None:
+        return "REJECT"
+    u = f["unix"]
+    if f["second"] == 60:
+        if u not in LEAP_MIDNIGHTS:
+            return "NOLEAP"
+        before = LEAP_MIDNIGHTS.index(u)
+        tai = LEAP_TABLE[before][1]
+    else:
+        before = sum(1 for m in LEAP_MIDNIGHTS if m <= u)
+        tai = max((off for ntp, off in LEAP_TABLE if ntp <= u + NTP_UNIX), default=None)
+    return f"OK\t{u - EPOCH_1972 + before}\t{tai if u >= EPOCH_1972 else '-'}"
+
+
+def from_si(n):
+    """The expected answer to `fromsi n`, by the table and `from_unix`."""
+    if n < 0:
+        return "NONE"
+    k = sum(1 for x in LEAP_SI if x < n)
+    if n in LEAP_SI:
+        r = from_unix(n + EPOCH_1972 - k - 1)
+        return r if r == "NONE" else r[:17] + "60" + r[19:]
+    return from_unix(n + EPOCH_1972 - k)
+
+
+def month_end_grid():
+    """23:59:58 to the next 00:00:00 at every month end from 1970 to 2030,
+    in UTC and spelled under other offsets."""
+    for year in range(1970, 2031):
+        for month in range(1, 13):
+            last = month_length(year, month)
+            base = datetime(year, month, last, 23, 59)
+            for off in (0, 60, -480, 330, 1439, -1439, 765):
+                local = base + timedelta(minutes=off)
+                text = "Z" if off == 0 else (f"+{off // 60:02d}:{off % 60:02d}" if off > 0 else
+                                             f"-{-off // 60:02d}:{-off % 60:02d}")
+                for sec in (58, 59, 60):
+                    yield stamp(local.year, local.month, local.day, local.hour, local.minute,
+                                sec, "", text)
+                nxt = local + timedelta(minutes=1)
+                yield stamp(nxt.year, nxt.month, nxt.day, nxt.hour, nxt.minute, 0, "", text)
+
+
+def si_grid():
+    for x in LEAP_SI:
+        yield from (x - 2, x - 1, x, x + 1, x + 2)
+    top = LAST - EPOCH_1972 + len(LEAP_SI)
+    yield from (-1, 0, 1, top - 1, top, top + 1, 10 ** 20, -10 ** 20)
+
+
+# RFC 9557: the grammar of section 4.1 and the rules of sections 3.2 to
+# 3.4, written here apart from the Lean code.
+IX_ITEMS = re.compile(r"(?:\[[^\[\]]*\])*")
+IX_ZONE_PART = re.compile(r"[A-Za-z._][A-Za-z0-9._+\-]*")
+IX_OFFSET = re.compile(r"[+-]([0-9]{2}):([0-9]{2})")
+IX_TAG = re.compile(r"([a-z_][a-z0-9_\-]*)=([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)")
+# The example application of Spec.exampleProcessor.
+IX_CALENDARS = (["chinese"], ["japanese"], ["hebrew"])
+IX_ZONES = {"Europe/Paris": 120, "Europe/London": 60, "America/Los_Angeles": -480}
+
+
+def ix_zone(body):
+    """The offset in minutes of a numeric time zone, the name of a named
+    one, or None when the grammar refuses it."""
+    m = IX_OFFSET.fullmatch(body)
+    if m:
+        h, mi = int(m.group(1)), int(m.group(2))
+        if h > 23 or mi > 59:
+            return None
+        return ("offset", (h * 60 + mi) * (1 if body[0] == "+" else -1))
+    parts = body.split("/")
+    if all(IX_ZONE_PART.fullmatch(q) and q not in (".", "..") for q in parts):
+        return ("name", body)
+    return None
+
+
+def ix_reference(s):
+    """The fields of an IXDTF string, or None when the grammar refuses it."""
+    i = s.find("[")
+    dt, sfx = (s, "") if i < 0 else (s[:i], s[i:])
+    f = reference(dt)
+    if f is None or not IX_ITEMS.fullmatch(sfx):
+        return None
+    zone, tags = None, []
+    for k, body in enumerate(re.findall(r"\[([^\[\]]*)\]", sfx)):
+        crit = body.startswith("!")
+        b = body[1:] if crit else body
+        if k == 0 and "=" not in b:
+            z = ix_zone(b)
+            if z is None:
+                return None
+            zone = (crit, z)
+        else:
+            m = IX_TAG.fullmatch(b)
+            if not m:
+                return None
+            tags.append((crit, m.group(1), m.group(2).split("-")))
+    return f, sfx, zone, tags
+
+
+def ixdtf(s):
+    """The expected answer to `ixdtf`."""
+    r = ix_reference(s)
+    if r is None:
+        return "REJECT"
+    f, sfx, zone, tags = r
+    asserts = f["offset"] not in ("Z", "-00:00")
+    bad = False
+    if zone and zone[0]:
+        kind, z = zone[1]
+        m = z if kind == "offset" else IX_ZONES.get(z)
+        if m is None or (asserts and m != f["offset_minutes"]):
+            bad = True
+    for crit, key, values in tags:
+        known = key == "u-ca" and values in IX_CALENDARS
+        if crit and not known:
+            bad = True
+        if crit and any(k == key and v != values for _, k, v in tags):
+            bad = True
+        if key.startswith("_") and not known:
+            bad = True
+    cal = next(("-".join(v) for _, k, v in tags if k == "u-ca"), "-")
+    return f"OK\t{f['print']}{sfx}\t{'true' if bad else 'false'}\t{cal}"
+
+
+IX_EXAMPLES = [
+    "2022-07-08T00:14:07+01:00[Europe/Paris]", "2022-07-08T00:14:07Z[Europe/Paris]",
+    "2022-07-08T02:14:07+02:00[Europe/Paris]", "2022-07-08T00:14:07+01:00[knort=blargel]",
+    "2022-07-08T00:14:07+01:00[!Europe/Paris]", "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]",
+    "2022-07-08T00:14:07Z[u-ca=chinese][!u-ca=japanese]", "2022-07-08T00:14:07Z[!knort=blargel]",
+    "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]", "2022-07-08T00:14:07Z[u-ca=chinese]",
+    "2022-07-08T00:14:07+00:00[!Europe/London]", "2022-07-08T00:14:07+00:00[Europe/London]",
+    "2022-07-08T00:14:07Z[!Europe/London]", "2022-07-08T00:14:07Z[Europe/London]",
+    "1996-12-19T16:39:57-08:00", "1996-12-19T16:39:57-08:00[America/Los_Angeles]",
+    "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]",
+    "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]", "2022-07-08T00:14:07+08:45[+08:45]",
+]
+# The edges of the grammar and the rules, each written once.
+IX_EDGES = [
+    "2022-07-08T00:14:07Z[..]", "2022-07-08T00:14:07Z[a/..]", "2022-07-08T00:14:07Z[../a]",
+    "2022-07-08T00:14:07Z[...]", "2022-07-08T00:14:07Z[.a]", "2022-07-08T00:14:07Z[a/./b]",
+    "2022-07-08T00:14:07Z[+23:59]", "2022-07-08T00:14:07Z[+24:00]", "2022-07-08T00:14:07Z[-00:60]",
+    "2022-07-08T00:14:07Z[!+01:00]", "2022-07-08T00:14:07+01:00[!+01:00]",
+    "2022-07-08T00:14:07+02:00[!+01:00]", "2022-07-08T00:14:07-00:00[!+01:00]",
+    "2022-07-08T00:14:07+00:00[!-00:00]", "2022-07-08T00:14:07-00:00[!Europe/Paris]",
+    "2022-07-08T00:14:07+02:00[!Europe/Paris]", "2022-07-08T00:14:07Z[!Nowhere/Fake]",
+    "2022-07-08T00:14:07Z[!u-ca=hebrew][!u-ca=hebrew]", "2022-07-08T00:14:07Z[!u-ca=hebrew][u-ca=hebrew]",
+    "2022-07-08T00:14:07Z[u-ca=hebrew][u-ca=chinese][!u-ca=hebrew]", "2022-07-08T00:14:07Z[!u-ca=a-b]",
+    "2022-07-08T00:14:07Z[_=x]", "2022-07-08T00:14:07Z[!_x=y]", "2022-07-08T00:14:07Z[x_=y]",
+    "2022-07-08T00:14:07Z[u-ca=]", "2022-07-08T00:14:07Z[=x]", "2022-07-08T00:14:07Z[u-ca==x]",
+    "2022-07-08T00:14:07Z[u-ca=x-]", "2022-07-08T00:14:07Z[u-ca=-x]", "2022-07-08T00:14:07Z[Ab=x]",
+    "2022-07-08T00:14:07Z[0a=x]", "2022-07-08T00:14:07Z[-a=x]", "2022-07-08T00:14:07Z[!!u-ca=x]",
+    "2022-07-08T00:14:07Z[!]", "2022-07-08T00:14:07Z[]", "2022-07-08T00:14:07Z[Europe/Paris][Europe/Paris]",
+    "2022-07-08T00:14:07Z[u-ca=hebrew][Europe/Paris]", "2022-07-08T00:14:07Z[Europe/Paris]x",
+    "2022-07-08T00:14:07Z [Europe/Paris]", "2022-07-08T00:14:07Z[Europe//Paris]",
+    "2022-07-08T00:14:07Z[/Europe]", "2022-07-08T00:14:07Z[Europe/]", "2022-07-08T00:14:07Z[Z]",
+    "2022-07-08T00:14:07Z[UTC][u-ca=hebrew]", "2022-07-08T00:14:07Z[u-ca=Hebrew]",
+    "1990-12-31T23:59:60Z[u-ca=hebrew]", "2022-07-08t00:14:07z[u-ca=hebrew]",
+    # A critical -00:00 zone is offset 0, whatever the timestamp's offset
+    "2022-07-08T01:14:07+01:00[!-00:00]", "2022-07-07T16:14:07-08:00[!-00:00]",
+    "2022-07-08T00:14:07Z[!-00:00]",
+    # Critical zones that agree with an asserted offset
+    "1996-12-19T16:39:57-08:00[!America/Los_Angeles]", "2022-07-08T00:14:07+08:45[!+08:45]",
+    "2022-07-08T00:14:07+01:00[!+08:45]",
+    # A critical tag whose key another tag uses with values that share
+    # its first part, and two critical tags with one key
+    "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=chinese-japanese]",
+    "2022-07-08T00:14:07Z[u-ca=chinese-japanese][!u-ca=chinese]",
+    "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=japanese]",
+    "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=chinese]",
+]
+IX_NAMES = ["Europe/Paris", "Europe/London", "America/Los_Angeles", "Asia/Tokyo", "UTC", "Etc/GMT+5",
+            "America/Argentina/Buenos_Aires", "_x", ".a", "a.b-c+d_e", "Z", "z"]
+IX_KEYS = ["u-ca", "u-ca", "knort", "_foo", "x", "a-b_c9", "_"]
+IX_VALUES = [["chinese"], ["japanese"], ["hebrew"], ["gregory"], ["blargel"], ["a", "b"], ["X1"], ["0"],
+             ["chinese", "japanese"]]
+
+
+def ix_offset_text(rng):
+    """An offset as RFC 3339 writes it; 0 as `+00:00` or `-00:00`."""
+    m = rng.choice([0, 60, 120, -480, 330, -1439, 1439])
+    sign = "+" if m > 0 or (m == 0 and rng.random() < 0.5) else "-"
+    return sign + f"{abs(m) // 60:02d}:{abs(m) % 60:02d}"
+
+
+def random_suffix(rng):
+    items = []
+    if rng.random() < 0.6:
+        flag = "!" if rng.random() < 0.3 else ""
+        body = ix_offset_text(rng) if rng.random() < 0.2 else rng.choice(IX_NAMES)
+        items.append(f"[{flag}{body}]")
+    for _ in range(rng.choice([0, 1, 1, 2, 3])):
+        flag = "!" if rng.random() < 0.3 else ""
+        items.append(f"[{flag}{rng.choice(IX_KEYS)}={'-'.join(rng.choice(IX_VALUES))}]")
+    return "".join(items)
+
+
+def mutate_suffix(rng, sfx):
+    """A suffix with one change that is likely to break the grammar."""
+    op = rng.randrange(10)
+    c = list(sfx)
+    if op == 0 and c:
+        c[rng.randrange(len(c))] = rng.choice("[]!=-/.+_aZ0 ")
+    elif op == 1 and c:
+        del c[rng.randrange(len(c))]
+    elif op == 2:
+        c.insert(rng.randint(0, len(c)), rng.choice("[]!=-/.+_aZ0"))
+    elif op == 3:
+        return sfx + rng.choice(["[]", "[!]", "[=x]", "[x=]", "[.]", "[..]", "[a/..]", "[a//b]"])
+    elif op == 4:
+        return sfx + "[U-ca=x]"
+    elif op == 5:
+        return sfx + "[u-ca=a--b]"
+    elif op == 6:
+        return sfx + "[" + rng.choice(IX_NAMES) + "]"
+    elif op == 7:
+        return sfx + rng.choice(["[+24:00]", "[+23:60]", "[Z]", "[+1:00]", "[!!u-ca=x]"])
+    elif op == 8:
+        return sfx.replace("[", "", 1)
+    else:
+        return sfx + "["
+    return "".join(c)
+
+
+def random_ixdtf(rng):
+    base = random_valid(rng) if rng.random() < 0.7 else stamp(
+        2022, 7, 8, 0, 14, 7, "", rng.choice(["Z", "-00:00", "+00:00", "+01:00", "+02:00", "-08:00"]))
+    sfx = random_suffix(rng)
+    if rng.random() < 0.3:
+        sfx = mutate_suffix(rng, sfx)
+    return base + sfx
 
 
 def unix_grid():
@@ -450,6 +745,38 @@ MALFORMED = [
     ("fromunix 1.5", "a fraction"),
     ("fromunix 0x10", "hex"),
     ("fromunix \u0663", "a digit that is not ASCII"),
+    ("known", "no argument"),
+    ("known 3", "an odd number of hex digits"),
+    ("known 30 30", "two arguments"),
+    ("known ff", "not UTF-8"),
+    ("fromsi", "no number"),
+    ("fromsi +1", "a plus sign"),
+    ("fromsi 1.5", "a fraction"),
+    ("fromsi 1 2", "two numbers"),
+    ("fromsi 1_000", "an underscore"),
+    ("fromsi -", "a sign alone"),
+    ("fromsi --1", "two signs"),
+    ("fromsi 0x10", "hex"),
+    ("fromsi \u0663", "a digit that is not ASCII"),
+    ("known 3G", "not a hex digit"),
+    ("known 3A", "hex digits are lower case"),
+    ("known c0af", "an overlong encoding, not UTF-8"),
+    ("known eda080", "a surrogate, not UTF-8"),
+    ("ixdtf", "no argument"),
+    ("ixdtf 3", "an odd number of hex digits"),
+    ("ixdtf 30 30", "two arguments"),
+    ("ixdtf ff", "not UTF-8"),
+]
+
+# Strings `known` must answer REJECT, not NOLEAP: second 60 away from a
+# UTC month end, second 61, an offset out of range, and no timestamp.
+KNOWN_REJECT = [
+    "1990-12-30T23:59:60Z",
+    "1990-12-31T23:59:61Z",
+    "1990-12-31T23:59:60+24:00",
+    "2015-02-30T00:00:00Z",
+    "",
+    "garbage",
 ]
 
 # A last line with no LF must still be answered.
@@ -467,7 +794,13 @@ def hexed(s):
 def cases(seed, count):
     """(label, request, expected answer, mutated) for each input."""
     rng = random.Random(seed)
-    fixed = []
+    # The short lists first, so that a run with a small count has them.
+    fixed = [("error", req, "error", False) for req, _ in MALFORMED]
+    for s in KNOWN_REJECT:
+        assert known(s) == "REJECT", s
+        fixed.append(("known", f"known {hexed(s)}", "REJECT", False))
+    for s in IX_EXAMPLES + IX_EDGES:
+        fixed.append(("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False))
     for s in itertools.chain(day_grid(), leap_grid(), edge_grid()):
         fixed.append(("grid", f"parse {hexed(s)}", answer(reference(s)), False))
     edges = list(edge_grid())
@@ -475,15 +808,48 @@ def cases(seed, count):
         fixed.append(("compare", f"compare {hexed(a)} {hexed(b)}", order(a, b), False))
     for n in unix_grid():
         fixed.append(("fromunix", f"fromunix {n}", from_unix(n), False))
-    for req, _ in MALFORMED:
-        fixed.append(("error", req, "error", False))
+    for s in month_end_grid():
+        fixed.append(("known", f"known {hexed(s)}", known(s), False))
+    for n in si_grid():
+        fixed.append(("fromsi", f"fromsi {n}", from_si(n), False))
     made = 0
     for item in fixed[:count]:
         yield item
         made += 1
     while made < count:
         r = rng.random()
+        if r < 0.03:
+            s = random_ixdtf(rng)
+            yield ("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False)
+            made += 1
+            continue
+        if r < 0.06:
+            r = rng.random()
+            if r < 0.65:
+                s = random_valid(rng)
+            elif r < 0.8:
+                s = leap_pair(rng)[0]
+            elif r < 0.9:
+                s = near_miss(rng)
+            else:
+                base = random_valid(rng)
+                s = mutate(rng, base)
+            yield ("known", f"known {hexed(s)}", known(s), False)
+            made += 1
+            continue
         if r < 0.1:
+            r = rng.random()
+            if r < 0.4:
+                n = rng.randint(-10, LAST - EPOCH_1972 + 40)
+            elif r < 0.7:
+                n = rng.choice(LEAP_SI) + rng.randint(-86400, 86400)
+            else:
+                want = known(random_valid(rng))
+                n = int(want.split("\t")[1]) if want.startswith("OK") else rng.randint(0, 10 ** 9)
+            yield ("fromsi", f"fromsi {n}", from_si(n), False)
+            made += 1
+            continue
+        if r < 0.16:
             r = rng.random()
             if r < 0.3:
                 n = rng.randint(FIRST - 10 ** 7, LAST + 10 ** 7)
@@ -621,8 +987,10 @@ def check_mode(items, limit=20000, batch=500):
 
 
 def oracle():
-    return (f"Python {platform.python_version()} `datetime` and `calendar`, and the "
-            f"RFC 3339 rules copied into this script")
+    return (f"Python {platform.python_version()} `datetime` and `calendar`, the "
+            f"RFC 3339 rules copied into this script, for leap seconds tzdata's "
+            f"`{LEAP_FILE}`, read by this script, and for RFC 9557 its grammar and rules "
+            f"written in this script")
 
 
 def lean_version():
@@ -713,6 +1081,12 @@ def main():
     leap = sum(1 for w in parsed if w.startswith("OK") and w.split("\t")[8] == "60")
     orders = [want for label, _, want, _ in items if label == "compare"]
     from_unix_wants = [want for label, _, want, _ in items if label == "fromunix"]
+    knowns = [want for label, _, want, _ in items if label == "known"]
+    known_leaps = sum(1 for label, req, want, _ in items if label == "known" and
+                      want.startswith("OK") and reference(bytes.fromhex(req.split(" ")[1]).decode())["second"] == 60)
+    from_si_wants = [want for label, _, want, _ in items if label == "fromsi"]
+    ix_wants = [want for label, _, want, _ in items if label == "ixdtf"]
+    expires = datetime(1900, 1, 1) + timedelta(seconds=LEAP_EXPIRES) if LEAP_EXPIRES else None
     mutated = sum(1 for item in items if item[3])
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
 
@@ -735,6 +1109,20 @@ def main():
         f"instant, {orders.count('>')} after, {orders.count('REJECT')} with a string rejected)",
         f"- Unix seconds turned back into timestamps: {len(from_unix_wants)}, of which "
         f"{from_unix_wants.count('NONE')} outside years 0000 to 9999",
+        f"- Leap second table: {LEAP_FILE}, {len(LEAP_TABLE)} lines, {len(LEAP_MIDNIGHTS)} leap "
+        f"seconds, expires {expires:%Y-%m-%d}, last updated at NTP time "
+        f"{LEAP_FILE_INFO.get('updated')}, hash line `{LEAP_FILE_INFO.get('hash')}`"
+        if expires else f"- Leap second table: {LEAP_FILE}",
+        f"- Timestamps checked against the table (`known`): {len(knowns)}, of which "
+        f"{known_leaps} leap seconds of the table, {knowns.count('NOLEAP')} with a second 60 it "
+        f"does not list, and {knowns.count('REJECT')} rejected",
+        f"- SI seconds turned back into timestamps (`fromsi`): {len(from_si_wants)}, of which "
+        f"{sum(1 for w in from_si_wants if w[17:19] == '60')} leap seconds and "
+        f"{from_si_wants.count('NONE')} outside 1972 to 9999",
+        f"- RFC 9557 strings (`ixdtf`): {len(ix_wants)}, of which "
+        f"{sum(1 for w in ix_wants if w.startswith('OK'))} read, "
+        f"{sum(1 for w in ix_wants if w.startswith('OK') and w.split(chr(9))[2] == 'true')} of them "
+        f"erroneous for the example application, and {ix_wants.count('REJECT')} refused",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",

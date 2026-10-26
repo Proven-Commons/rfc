@@ -18,7 +18,22 @@
     "Spec.syntax_vectors",
     "Spec.fromUnixSeconds_iff",
     "Spec.fromUnixSeconds_isSome",
-    "Spec.fromUnixSeconds_vectors"
+    "Spec.fromUnixSeconds_vectors",
+    "Spec.isValidKnown_iff",
+    "Spec.siSeconds_eq",
+    "Spec.siSeconds_order",
+    "Spec.fromSiSeconds_iff",
+    "Spec.fromSiSeconds_isSome",
+    "Spec.taiMinusUtc_leapsBefore",
+    "Spec.taiMinusUtc_eq",
+    "Spec.leap_table_vectors",
+    "Spec.parseExt_iff",
+    "Spec.printExt_eq",
+    "Spec.parseExt_print",
+    "Spec.parseExt_plain",
+    "Spec.lookup_iff",
+    "Spec.erroneous_iff",
+    "Spec.ixdtf_vectors"
   ],
   "permitted_axioms": [
     "propext",
