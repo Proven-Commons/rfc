@@ -11,7 +11,11 @@ namespace Rfc3339
 /-- The months, as (year, month), whose last second in UTC was a leap
     second, 23:59:60: the 27 of IERS Bulletin C, as tzdata's
     `leap-seconds.list` gives them. That file expires on 28 June 2027:
-    no leap second comes before then that is not in it. -/
+    no leap second comes before then that is not in it. The lemma
+    `Rfc3339.Proofs.Leap.leapKey_table`, in `Proofs/Leap/Table.lean`,
+    proves that these months give the leap seconds of the lines of
+    `Spec.leapTable` after the first, in the same order. The README's
+    "Refresh the leap second table" says how to update the list. -/
 def leapMonths : List (Nat × Nat) :=
   [(1972, 6), (1972, 12), (1973, 12), (1974, 12), (1975, 12), (1976, 12), (1977, 12),
    (1978, 12), (1979, 12), (1981, 6), (1982, 6), (1983, 6), (1985, 6), (1987, 12),
@@ -23,9 +27,12 @@ def leapMonths : List (Nat × Nat) :=
     offset can name an instant before 0000-01-01T00:00:00Z, as
     `0000-01-01T00:59:60+01:00` does. Its UTC month is the December
     before year 0000, which a `Nat` year cannot hold, and the result is
-    (0, 1). This cannot change `isValidKnown`: (0, 1) is not in
-    `leapMonths`, which starts in 1972, and `Spec.isValidKnown_iff`
-    fixes `isValidKnown` for every timestamp. -/
+    (0, 1). This cannot change `isValidKnown`. (0, 1) is not in
+    `leapMonths`, which starts in 1972. And `Spec.isValidKnown_iff`
+    proves, for every timestamp, that `isValidKnown` agrees with
+    `Spec.ValidKnown`, which reads Unix seconds through the table, not
+    `utcMonth`. So if (0, 1) ever joined `leapMonths`, that proof would
+    fail. -/
 def Timestamp.utcMonth (t : Timestamp) : Nat × Nat :=
   let (y, m, _) := fromDayNumber (t.utcMinute / 1440).toNat
   (y, m)
