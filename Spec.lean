@@ -15,6 +15,7 @@
 import Rfc3339
 import Spec.Defs
 import Spec.Leap
+import Spec.Ixdtf
 
 open Rfc3339
 
@@ -261,3 +262,123 @@ theorem Spec.leap_table_vectors :
     fromSiSeconds 1420156827 = some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ ∧
     fromUnixSeconds (Timestamp.unixSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩) =
       some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ := sorry
+
+/-! ## RFC 9557: the Internet Extended Date/Time Format -/
+
+/-- `parseExt` returns `e` exactly when `e` is an IXDTF timestamp the
+    grammar of section 4.1 allows and the string is how it is written:
+    the RFC 3339 part with `T` and `Z` in either case, then the suffix
+    as written. So it accepts nothing outside the grammar, rejects
+    nothing inside it, and returns the time zone and tags as written. -/
+theorem Spec.parseExt_iff (s : String) (e : Ext) :
+    parseExt s = some e ↔
+      Spec.ExtValid e ∧ ∃ dt, s.toList = dt ++ Spec.renderSuffix e ∧
+        dt.map Spec.asciiUpper = Spec.render e.stamp := sorry
+
+/-- An IXDTF timestamp prints as the grammar writes it, with `T` and `Z`
+    in upper case. -/
+theorem Spec.printExt_eq (e : Ext) (h : Spec.ExtValid e) :
+    e.print.toList = Spec.render e.stamp ++ Spec.renderSuffix e := sorry
+
+/-- Round trip: printing then parsing gives the IXDTF timestamp back. -/
+theorem Spec.parseExt_print (e : Ext) (h : Spec.ExtValid e) : parseExt e.print = some e := sorry
+
+/-- IXDTF extends RFC 3339: a string with no suffix reads as `parse`
+    reads it, with no time zone and no tags. -/
+theorem Spec.parseExt_plain (s : String) (h : '[' ∉ s.toList) :
+    parseExt s = (parse s).map fun t => ⟨t, none, []⟩ := sorry
+
+/-- `lookup` gives the first tag with the key, which section 3.3 has an
+    application choose when an elective key is repeated. -/
+theorem Spec.lookup_iff (e : Ext) (k : List Char) (t : Tag) :
+    e.lookup k = some t ↔ ∃ l r, e.tags = l ++ t :: r ∧ t.key = k ∧ ∀ u ∈ l, u.key ≠ k := sorry
+
+/-- `erroneous` decides what sections 3.2 to 3.4 make an application
+    treat as erroneous. -/
+theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
+    e.erroneous p = true ↔ Spec.MustReject p e := sorry
+
+/-- Every example of RFC 9557, in sections 1.2, 3.3, 3.4 and 4.2, with
+    the application of `Spec.exampleProcessor`: each one is read, and is
+    erroneous exactly where the RFC says it must be treated so. Also
+    critical time zones that agree with the offset, a critical `-00:00`
+    zone that does not, and strings the grammar refuses. -/
+theorem Spec.ixdtf_vectors :
+    -- Section 4.2, Figures 4 to 7
+    parseExt "1996-12-19T16:39:57-08:00" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none, []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+        some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+        some (false, .name ["America".toList, "Los_Angeles".toList]),
+        [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none,
+        [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩ ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    -- An experiment the application does not take part in
+    ((parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    -- Section 1.2: an offset time zone
+    parseExt "2022-07-08T00:14:07+08:45[+08:45]" =
+      some ⟨⟨2022, 7, 8, 0, 14, 7, [], .plus 8 45⟩, some (false, .offset (.plus 8 45)), []⟩ ∧
+    ((parseExt "2022-07-08T00:14:07+08:45[!+08:45]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    -- Section 3.3, elective: an inconsistent zone, the zones of the note,
+    -- an unknown key, repeated keys
+    ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07+01:00[knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").bind (·.lookup "u-ca".toList) =
+      some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese]").bind (·.lookup "u-ca".toList) =
+      some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
+    -- Section 3.3, critical: the four examples
+    ((parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][!u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    -- Section 3.4, Figures 1 and 2
+    ((parseExt "2022-07-08T00:14:07+00:00[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    ((parseExt "2022-07-08T00:14:07+00:00[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    -- Critical zones that agree with the offset, and a critical `-00:00`
+    -- zone, offset 0, under an offset of +01:00
+    ((parseExt "1996-12-19T16:39:57-08:00[!America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T01:14:07+01:00[!-00:00]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    -- `Z` in brackets is a zone name, not an offset
+    ((parseExt "2022-07-08T00:14:07Z[Z]").map (·.zone) = some (some (false, .name ["Z".toList]))) ∧
+    -- Refused by the grammar: an empty item, `.` and `..`, an upper case
+    -- key, an empty value, a time zone after a tag, an offset out of range
+    parseExt "2022-07-08T00:14:07Z[]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[.]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[a/..]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[U-ca=x]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[u-ca=a--b]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[u-ca=x][Europe/Paris]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[+24:00]" = none := sorry

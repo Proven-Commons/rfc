@@ -32,6 +32,12 @@
     fromsi N          prints  the printed form of the UTC timestamp N SI
                       seconds after 1972-01-01T00:00:00Z, with second 60
                       at a leap second, or NONE outside 1972 to 9999
+    ixdtf HEX         prints  OK, then tab-separated: the printed form of
+                      the RFC 9557 string, whether the example
+                      application of `Spec.exampleProcessor` must treat
+                      it as erroneous (`true` or `false`), and the values
+                      of the first `u-ca` tag joined by `-`, or `-`;
+                      or REJECT
 
   A malformed request prints `error`: an unknown operation, hex digits
   that are not in pairs, bytes that are not UTF-8, or a number that is
@@ -42,11 +48,13 @@
   `Timestamp.print`, `Timestamp.unixSeconds`,
   `Timestamp.compareInstant`, `fromUnixSeconds`,
   `Timestamp.isValidKnown`, `Timestamp.siSeconds`,
-  `Timestamp.taiMinusUtc` and `fromSiSeconds`. The hex decoding and the request handling
+  `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`,
+  `Ext.erroneous` and `Ext.lookup`. The hex decoding and the request handling
   here are covered by the tests, not by a proof.
 -/
 
 import Rfc3339
+import Spec.Ixdtf
 
 open Rfc3339
 
@@ -113,6 +121,15 @@ def request (line : String) : Option String :=
           let tai := if 63072000 ≤ t.unixSeconds then toString t.taiMinusUtc else "-"
           s!"OK\t{t.siSeconds}\t{tai}"
         else "NOLEAP"
+      | none => "REJECT"
+  | ["ixdtf", h] => do
+    let s ← fromHex h
+    pure <| match parseExt s with
+      | some e =>
+        let cal := match e.lookup "u-ca".toList with
+          | some t => String.ofList (['-'].intercalate t.values)
+          | none => "-"
+        s!"OK\t{e.print}\t{e.erroneous Spec.exampleProcessor}\t{cal}"
       | none => "REJECT"
   | ["fromsi", n] => do
     let s ← decimal n

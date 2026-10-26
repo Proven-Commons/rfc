@@ -1,6 +1,6 @@
 # Specification: rfc
 
-This library reads and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`. It also gives the instant a timestamp names, as whole seconds since 1970-01-01T00:00:00Z, and puts two timestamps in order by instant. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, `Rfc3339/Types.lean`, and the other files `bar.toml` lists.
+This library reads and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`. It also gives the instant a timestamp names, as whole seconds since 1970-01-01T00:00:00Z, and puts two timestamps in order by instant. It reads and writes the extended form of RFC 9557, with a time zone and tags after the timestamp. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, `Rfc3339/Types.lean`, `Spec/Leap.lean`, `Spec/Ixdtf.lean`, `Rfc3339/IxdtfTypes.lean`, and the other files `bar.toml` lists.
 
 ## The format
 
@@ -61,9 +61,38 @@ Section 5.7 allows second 60 only "at the end of months in which a leap second o
 
 Before 1972, UTC ran on seconds of varying length, with TAI − UTC not a whole number of seconds. There `siSeconds` is Unix seconds less 63072000, 86400 to a day, as `Spec.siSeconds_eq` says, which are not SI seconds, and `taiMinusUtc` gives 10, which means nothing. A leap second announced after the table's date would need a new table, in the spec and in the code, and a new approval.
 
+## RFC 9557: time zones and tags
+
+RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. After the timestamp may come a suffix: a time zone in brackets, then tags in brackets. Each may be marked critical with `!`. An example is `1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]`. `Spec/Ixdtf.lean` quotes the grammar of section 4.1.
+
+- The time zone is a name or a numeric offset:
+  - A name is one or more parts joined by `/`. Each part starts with a letter, `.` or `_`, and goes on with letters, digits, `.`, `_`, `-` and `+`. It may not be `.` or `..`.
+  - An offset is RFC 3339's `+hh:mm` or `-hh:mm`, in range. It may not be `Z`, which in brackets reads as a one-letter zone name.
+- A tag is a key, `=`, and one or more values joined by `-`:
+  - The key starts with a lower case letter or `_`, and goes on with lower case letters, digits, `_` and `-`.
+  - A value is one or more ASCII letters or digits.
+- The time zone, when there is one, comes before every tag.
+- In ABNF, alternation binds more loosely than concatenation, so the `time-zone` rule as written reads `("[" critical-flag time-zone-name) / (time-numoffset "]")`. The spec follows the intent, which section 4.1's note and every example show: a name or an offset between the brackets.
+
+`parseExt` reads such a string. It returns an `Ext`:
+- the timestamp, as `parse` reads it;
+- the time zone, if there is one, with whether it is critical, its name as the parts between the slashes, or its offset;
+- the tags in order, each with whether it is critical, its key, and its values as the parts between the hyphens.
+
+It reads exactly the strings of the grammar, with the timestamp as `parse` reads it, second 60 at the end of any month included, and a string with no suffix exactly as `parse` reads it. `Ext.print` writes an `Ext` back, with `T` and `Z` in upper case.
+
+`Ext.lookup` gives the first tag with a key. Section 3.3 has an application that does not handle a repeated elective key choose the first.
+
+`Ext.erroneous` says whether an application must treat the string as erroneous. That depends on the application, so it takes a `Processor`: which tags the application can process, and the offset a named time zone has at an instant, or `none` for a zone it does not know. The string is erroneous when any of these holds:
+- **Section 3.4:** the time zone is critical and does not agree with the timestamp. A named zone the application does not know never agrees, as section 4.1 asks. Otherwise the zone's offset at that instant must be the timestamp's offset. `Z` and `-00:00` assert no local offset, so a numeric offset or a zone the application knows agrees with them, as Figure 2 shows for `2022-07-08T00:14:07Z[!Europe/London]`.
+- **Section 3.3:** a critical tag the application cannot process, or a critical tag whose key another tag uses with other values.
+- **Section 3.2:** a key that starts with `_`, for an experiment, that the application does not process.
+
+Everything else is elective: an application may ignore a tag it does not know, or a time zone that disagrees with the offset when the zone is not critical. This library holds no time zone database, and does not judge what a tag such as a calendar means. Those are the application's, through its `Processor`.
+
 ## Errors
 
-`parse` returns `none` for any string it does not accept, `fromUnixSeconds` for any number outside the years 0000 to 9999, and `fromSiSeconds` for any number outside 1972 to 9999. No function can fail any other way.
+`parse` and `parseExt` return `none` for any string they do not accept, `fromUnixSeconds` for any number outside the years 0000 to 9999, and `fromSiSeconds` for any number outside 1972 to 9999. No function can fail any other way.
 
 ## The command-line tool
 
@@ -72,11 +101,11 @@ The command-line tool in `Main.lean` has two modes:
 - `rfc3339 check TIMESTAMP...` prints each timestamp's printed form and its Unix seconds, or `invalid`. It exits with 1 when any timestamp is invalid.
 - `rfc3339 serve` answers requests from the differential tests, one per line. Each string is sent as the hex digits of its UTF-8 bytes. The header comment of `Main.lean` gives the protocol.
 
-Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant`, `fromUnixSeconds`, `Timestamp.isValidKnown`, `Timestamp.siSeconds`, `Timestamp.taiMinusUtc` and `fromSiSeconds`. The `known` request prints `-` for TAI − UTC before 1972.
+Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant`, `fromUnixSeconds`, `Timestamp.isValidKnown`, `Timestamp.siSeconds`, `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`, `Ext.lookup` and `Ext.erroneous`. The `known` request prints `-` for TAI − UTC before 1972. The `ixdtf` request judges each string with the example application of `Spec.exampleProcessor`, and gives the values of its first `u-ca` tag.
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean` and, for the leap second table, `Spec/Leap.lean`. They are written from the RFC and checked against its tables and against known day counts.
+Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`, for the leap second table in `Spec/Leap.lean`, and for RFC 9557 in `Spec/Ixdtf.lean`. They are written from the RFC and checked against its tables and against known day counts.
 
 | Property | Theorem |
 |----------|---------|
@@ -104,20 +133,29 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | `taiMinusUtc` is 10 and one more for each leap second of the table before the timestamp. | `Spec.taiMinusUtc_leapsBefore` |
 | TAI − UTC from 1972 on, at each second but a leap second, is the table's value. | `Spec.taiMinusUtc_eq` |
 | Leap seconds of the table and months without one; SI seconds and TAI − UTC around the first and the last; the round trip Unix seconds lose. | `Spec.leap_table_vectors` |
+| `parseExt s` is `e` exactly when `e` is valid by the RFC 9557 grammar and `s` is a timestamp `parse` reads as `e`'s, then `e`'s suffix as the grammar writes it. | `Spec.parseExt_iff` |
+| A valid `Ext` prints as the grammar writes it. | `Spec.printExt_eq` |
+| Printing then parsing gives a valid `Ext` back. | `Spec.parseExt_print` |
+| A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Spec.parseExt_plain` |
+| `lookup` gives the first tag with the key. | `Spec.lookup_iff` |
+| `erroneous` decides `Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Spec.erroneous_iff` |
+| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
 
 Together, these fix every output for valid input.
 
 - `parse` is fixed for every string.
 - `print`, `unixSeconds` and `compareInstant` are fixed for every valid timestamp. The parser gives only valid timestamps.
 - `fromUnixSeconds` is fixed for every number, by `Spec.fromUnixSeconds_iff` and `Spec.fromUnixSeconds_isSome`, and `fromSiSeconds` likewise by its two statements.
+- `parseExt` is fixed for every string, `Ext.print` for every valid `Ext`, `Ext.lookup` for every `Ext` and key, and `Ext.erroneous` for every application and `Ext`.
 - `isValidKnown` is fixed for every timestamp, and `siSeconds` for every valid one. `taiMinusUtc` is fixed for every valid timestamp, by `Spec.taiMinusUtc_leapsBefore`, and agrees with the table's column from 1972 on but at a leap second.
 - A parser that accepted nothing would meet `Spec.parse_valid`, but it would fail `Spec.parse_iff` and `Spec.parse_print`.
 - A parser that accepted too much would fail `Spec.parse_iff`.
 
 ## Oracle
 
-The differential tests compare the tool with two oracles:
+The differential tests compare the tool with these oracles:
 
 - Python's `datetime` and `calendar` modules: month lengths, offset arithmetic, seconds since the epoch, `datetime.fromisoformat` on every accepted string it can hold, and the UTC timestamp for a number of seconds. `datetime` holds no year 0, so dates there are moved by 400 years, one cycle of the Gregorian calendar, for the arithmetic.
 - A copy of the rules above, written in Python from the RFC.
 - For leap seconds, tzdata's `leap-seconds.list` on the test machine, read by the test script itself, with the SI seconds and TAI − UTC worked out from it in Python.
+- For RFC 9557, the grammar of section 4.1 and the rules of sections 3.2 to 3.4, written in Python from the RFC, with the same example application.
