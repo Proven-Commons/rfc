@@ -46,9 +46,9 @@ POSIX time has no number for a leap second. As in POSIX time, second 60 is count
 
 ## From Unix seconds
 
-`fromUnixSeconds` goes the other way: from whole seconds since 1970-01-01T00:00:00Z to the UTC timestamp for that second. Its result is valid, has offset `Z`, no fraction, and a second of at most 59, and names exactly the second it was given. Each second has exactly one such timestamp, and this is it. A leap second is never a result, since its number is the same as the next second's.
+`fromUnixSeconds` goes the other way: from whole seconds since 1970-01-01T00:00:00Z to the UTC timestamp for that second. Its result is valid, has offset `Z`, no fraction, and a second of at most 59, and names exactly the second it was given. Each second has at most one such timestamp, and when it has one, this is it. A leap second is never a result, since its number is the same as the next second's.
 
-It covers every second from `0000-01-01T00:00:00Z` (-62167219200) to `9999-12-31T23:59:59Z` (253402300799), the years RFC 3339 allows, and returns `none` outside them. So `fromUnixSeconds t.unixSeconds` puts any valid timestamp, whatever its offset, into UTC, dropping its fraction, unless that moves it outside those years.
+Every second from `0000-01-01T00:00:00Z` (-62167219200) to `9999-12-31T23:59:59Z` (253402300799), the years RFC 3339 allows, has one, and `fromUnixSeconds` returns `none` outside them. So for a valid timestamp `t` whose second is at most 59, `fromUnixSeconds t.unixSeconds` is `t` put into UTC with its fraction dropped, or `none` when that moves it outside those years. A leap second comes back as the second after it, a different instant, so `1990-12-31T23:59:60Z` gives `1991-01-01T00:00:00Z`, and `9999-12-31T23:59:60Z`, at any offset, gives `none`.
 
 ## Errors
 

@@ -143,9 +143,10 @@ theorem Spec.syntax_vectors :
 
 /-! ## From Unix seconds -/
 
-/-- `fromUnixSeconds s` is the one timestamp that is valid, in UTC
-    (offset `Z`), with no fraction and no leap second, and that names
-    the second `s`. -/
+/-- `fromUnixSeconds s` gives exactly the timestamp that is valid, in
+    UTC (offset `Z`), with no fraction and no leap second, and that
+    names the second `s`. There is at most one; the next statement says
+    for which `s` there is one. -/
 theorem Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
     Rfc3339.fromUnixSeconds s = some t ↔
       Spec.Valid t ∧ t.offset = .z ∧ t.fraction = [] ∧ t.second ≤ 59 ∧
