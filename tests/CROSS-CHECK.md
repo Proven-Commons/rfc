@@ -34,6 +34,7 @@ Where each parser differs from this one, by the first category that fits the str
 ## RFC 9557
 
 - Node v22.22.0, `Temporal.Instant.from`, with `--harmony-temporal`: V8's Temporal behind a flag, older than the current proposal
+- This Temporal is V8's own, here V8 12.4.254.21-node.33. Node's `process.versions` also gives ICU 77.1 and time zone data 2025b.
 - Strings: 7143, of which this project reads 5302. The same answer, read or refused: 2833.
 
 Where Temporal differs from this project, by the first category that fits the string:

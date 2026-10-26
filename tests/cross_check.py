@@ -32,12 +32,15 @@ For RFC 9557, the strings tests/run_tests.py sends as `ixdtf` requests go
 to `Temporal.Instant.from` in Node, with `--harmony-temporal`. That is
 V8's own Temporal behind a flag, an older one than the current proposal:
 it refuses some strings the proposal now reads. Each difference is put in
-the first category below that fits it.
+the first category below that fits it. The report records the flag,
+Node's version, and the versions of V8, ICU and the time zone data that
+Node gives in `process.versions`, so that the run can be repeated.
 
 The counts go to tests/CROSS-CHECK.md.
 """
 
 import argparse
+import json
 import platform
 import re
 import subprocess
@@ -237,11 +240,14 @@ def ixdtf_section(args):
     ours, problem = run_tests.run_tool("".join(f"ixdtf {run_tests.hexed(x)}\n" for x in strings))
     if problem or len(ours) != len(strings):
         sys.exit(f"the tool failed: {problem}")
-    out = subprocess.run(["node", "--harmony-temporal", str(GO_DIR / "ixdtf.js")],
+    flag = "--harmony-temporal"
+    out = subprocess.run(["node", flag, str(GO_DIR / "ixdtf.js")],
                          input="".join(run_tests.hexed(x) + "\n" for x in strings),
                          capture_output=True, text=True, check=True)
     theirs = out.stdout.split("\n")[: len(strings)]
     node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip()
+    versions = json.loads(subprocess.run(["node", "-p", "JSON.stringify(process.versions)"],
+                                         capture_output=True, text=True, check=True).stdout)
     tallies, examples = {}, {}
     for x, o, t in zip(strings, ours, theirs):
         ok, tok = o.startswith("OK"), t == "OK"
@@ -257,8 +263,10 @@ def ixdtf_section(args):
         "",
         "## RFC 9557",
         "",
-        f"- Node {node}, `Temporal.Instant.from`, with `--harmony-temporal`: V8's Temporal behind a "
+        f"- Node {node}, `Temporal.Instant.from`, with `{flag}`: V8's Temporal behind a "
         "flag, older than the current proposal",
+        f"- This Temporal is V8's own, here V8 {versions['v8']}. Node's `process.versions` also "
+        f"gives ICU {versions['icu']} and time zone data {versions['tz']}.",
         f"- Strings: {len(strings)}, of which this project reads "
         f"{sum(1 for o in ours if o.startswith('OK'))}. The same answer, read or refused: {same}.",
         "",
