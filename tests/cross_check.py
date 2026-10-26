@@ -21,9 +21,10 @@ instants must match to the nanosecond.
 For the leap second table, the timestamps tests/run_tests.py sends as
 `known` requests, and the SI seconds it sends as `fromsi`, go to ERFA,
 a BSD-licensed C library derived from the IAU's SOFA, through pyerfa, which keeps its
-own leap second table: `dat` gives TAI - UTC, and `dtf2d` with `utctai`
-the TAI time, from which the SI seconds since 1972-01-01T00:00:00Z
-follow. It needs pyerfa:
+own leap second table: `dat` gives TAI - UTC, given the UTC date and
+ERFA's own fraction of the day, and `dtf2d` with `utctai` the TAI time,
+from which the SI seconds since 1972-01-01T00:00:00Z follow. It needs
+pyerfa:
 
     pip install --target .lake/oracle-packages pyerfa==2.0.1.5
 
@@ -146,8 +147,13 @@ def leap_section(args):
         # utc_parts moves years `datetime` cannot hold by 400 years; move
         # the UTC year back.
         year = utc.year + f["year"] - run_tests.shifted(f["year"])[0]
-        theirs_tai = erfa.dat(year, utc.month, utc.day,
-                              (utc.hour * 3600 + utc.minute * 60 + f["second"]) / 86400)
+        # ERFA's own fraction of the day. Its UTC day that ends in a leap
+        # second has 86401 seconds, so the leap second gets 86400/86401.
+        # That keeps it below 1, in the range 0 to 1 that eraDat documents.
+        # From 1972 on, eraDat reads only the date (its Note 4).
+        _, _, _, fd = erfa.jd2cal(*erfa.dtf2d("UTC", year, utc.month, utc.day, utc.hour,
+                                               utc.minute, float(f["second"])))
+        theirs_tai = erfa.dat(year, utc.month, utc.day, fd)
         theirs_si = erfa_elapsed(erfa, year, utc.month, utc.day, utc.hour, utc.minute,
                                  f["second"], base)
         k_checked += 1
@@ -168,7 +174,9 @@ def leap_section(args):
         "",
         "## Leap seconds",
         "",
-        f"- ERFA, through pyerfa {version('pyerfa')}, with its own leap second table",
+        f"- ERFA, through pyerfa {version('pyerfa')}, with its own leap second table. `dat` "
+        "gets the UTC date and ERFA's own fraction of the day, from `dtf2d` and `jd2cal`, "
+        "so a leap second gets 86400/86401, below 1.",
         f"- Timestamps known valid by the table, from 1972 on, given to ERFA: {k_checked}. "
         f"Different SI seconds since 1972 or TAI - UTC: {len(k_diff)}. Before 1972, where "
         f"TAI - UTC was not a whole number of seconds, not compared: {k_before}.",
