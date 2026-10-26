@@ -27,6 +27,12 @@ follow. It needs pyerfa:
 
     pip install --target .lake/oracle-packages pyerfa==2.0.1.5
 
+For RFC 9557, the strings tests/run_tests.py sends as `ixdtf` requests go
+to `Temporal.Instant.from` in Node, with `--harmony-temporal`. That is
+V8's own Temporal behind a flag, an older one than the current proposal:
+it refuses some strings the proposal now reads. Each difference is put in
+the first category below that fits it.
+
 The counts go to tests/CROSS-CHECK.md.
 """
 
@@ -181,6 +187,81 @@ def leap_section(args):
     return lines
 
 
+def ix_category(s, ours_ok):
+    """Why Temporal reads `s` differently: the first reason that fits."""
+    r = run_tests.ix_reference(s)
+    if ours_ok:
+        f, _, zone, tags = r
+        if len(f["fraction"]) > 9:
+            return "a fraction of more than nine digits, finer than Temporal's nanoseconds"
+        if (zone and zone[0]) or any(c for c, _, _ in tags):
+            return "a critical item, which Temporal refuses when it does not act on it"
+        if any(k.startswith("_") for _, k, _ in tags):
+            return "an experimental key"
+        if len([k for _, k, _ in tags if k == "u-ca"]) > 1:
+            return "a repeated elective `u-ca`"
+        if any(k != "u-ca" for _, k, _ in tags):
+            return "an unknown elective key"
+        if tags and tags[0][2] not in run_tests.IX_CALENDARS:
+            return "a calendar Temporal does not know"
+        if zone and zone[1][0] == "name" and "/" not in zone[1][1]:
+            return "a one-part time zone name"
+        if zone and zone[1][0] == "name":
+            return "another time zone name"
+        return "other"
+    i = s.find("[")
+    if run_tests.reference(s if i < 0 else s[:i]) is None:
+        return "an RFC 3339 part the RFC does not allow"
+    if re.search(r"\[!?[+-][0-9]{4}\]", s):
+        return "a time zone offset with no colon, as ISO 8601's basic format writes it"
+    if re.search(r"\[[^\]]*\[", s):
+        return "a `[` inside an item"
+    return "another suffix the grammar refuses"
+
+
+def ixdtf_section(args):
+    import os
+    strings = [bytes.fromhex(req.split(" ")[1]).decode("utf-8")
+               for label, req, _, _ in run_tests.cases(args.seed, args.count) if label == "ixdtf"]
+    ours, problem = run_tests.run_tool("".join(f"ixdtf {run_tests.hexed(x)}\n" for x in strings))
+    if problem or len(ours) != len(strings):
+        sys.exit(f"the tool failed: {problem}")
+    out = subprocess.run(["node", "--harmony-temporal", str(GO_DIR / "ixdtf.js")],
+                         input="".join(run_tests.hexed(x) + "\n" for x in strings),
+                         capture_output=True, text=True, check=True)
+    theirs = out.stdout.split("\n")[: len(strings)]
+    node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip()
+    tallies, examples = {}, {}
+    for x, o, t in zip(strings, ours, theirs):
+        ok, tok = o.startswith("OK"), t == "OK"
+        if ok == tok:
+            continue
+        key = ("accepts" if tok else "refuses", ix_category(x, ok))
+        tallies[key] = tallies.get(key, 0) + 1
+        examples.setdefault(key, [])
+        if len(examples[key]) < 2:
+            examples[key].append(x)
+    same = sum(1 for o, t in zip(ours, theirs) if o.startswith("OK") == (t == "OK"))
+    lines = [
+        "",
+        "## RFC 9557",
+        "",
+        f"- Node {node}, `Temporal.Instant.from`, with `--harmony-temporal`: V8's Temporal behind a "
+        "flag, older than the current proposal",
+        f"- Strings: {len(strings)}, of which this project reads "
+        f"{sum(1 for o in ours if o.startswith('OK'))}. The same answer, read or refused: {same}.",
+        "",
+        "Where Temporal differs from this project, by the first category that fits the string:",
+        "",
+        "| Temporal | Category | Strings | Example |",
+        "| --- | --- | --- | --- |",
+    ]
+    for (how, cat), n in sorted(tallies.items(), key=lambda kv: (-kv[1], kv[0])):
+        ex = ", ".join(f"`{e!r}`" for e in examples[(how, cat)])
+        lines.append(f"| {how} | {cat} | {n} | {ex} |")
+    return lines
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=20261025)
@@ -251,6 +332,7 @@ def main():
     for s, theirs, ours in value_mismatch[:20]:
         lines.append(f"- Different instant: `{s!r}`: Go `{theirs}`, this project `{ours}`")
     lines += leap_section(args)
+    lines += ixdtf_section(args)
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{len(strings)} strings; report in {REPORT}")
 

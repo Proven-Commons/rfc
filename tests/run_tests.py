@@ -50,6 +50,18 @@ Inputs come from a recorded seed:
   timestamps. `fromsi` requests take every leap second's SI seconds and
   the two seconds either side, the ends of the range and one past each,
   random numbers, and the SI seconds of random timestamps;
+- for RFC 9557, the Internet Extended Date/Time Format, a fourth
+  oracle: its grammar (section 4.1) and its rules for elective and
+  critical tags (sections 3.2 to 3.4), written again in this script.
+  `ixdtf` requests must give the printed form, whether the example
+  application must treat the string as erroneous, and the first `u-ca`
+  tag. The inputs are every example of sections 3.3, 3.4 and 4.2,
+  random timestamps with random suffixes (time zones by name and by
+  offset, tags with known, unknown and experimental keys, each item
+  elective or critical, keys repeated), and those suffixes mutated: a
+  character changed, dropped or added, a bracket or `!` moved, a key in
+  upper case, `.` or `..` as a zone part, an empty item or value, a
+  time zone after a tag;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
@@ -198,6 +210,152 @@ def si_grid():
         yield from (x - 2, x - 1, x, x + 1, x + 2)
     top = LAST - EPOCH_1972 + len(LEAP_SI)
     yield from (-1, 0, 1, top - 1, top, top + 1, 10 ** 20, -10 ** 20)
+
+
+# RFC 9557: the grammar of section 4.1 and the rules of sections 3.2 to
+# 3.4, written here apart from the Lean code.
+IX_ITEMS = re.compile(r"(?:\[[^\[\]]*\])*")
+IX_ZONE_PART = re.compile(r"[A-Za-z._][A-Za-z0-9._+\-]*")
+IX_OFFSET = re.compile(r"[+-]([0-9]{2}):([0-9]{2})")
+IX_TAG = re.compile(r"([a-z_][a-z0-9_\-]*)=([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)")
+# The example application of Spec.exampleProcessor.
+IX_CALENDARS = (["chinese"], ["japanese"], ["hebrew"])
+IX_ZONES = {"Europe/Paris": 120, "Europe/London": 60, "America/Los_Angeles": -480}
+
+
+def ix_zone(body):
+    """The offset in minutes of a numeric time zone, the name of a named
+    one, or None when the grammar refuses it."""
+    m = IX_OFFSET.fullmatch(body)
+    if m:
+        h, mi = int(m.group(1)), int(m.group(2))
+        if h > 23 or mi > 59:
+            return None
+        return ("offset", (h * 60 + mi) * (1 if body[0] == "+" else -1))
+    parts = body.split("/")
+    if all(IX_ZONE_PART.fullmatch(q) and q not in (".", "..") for q in parts):
+        return ("name", body)
+    return None
+
+
+def ix_reference(s):
+    """The fields of an IXDTF string, or None when the grammar refuses it."""
+    i = s.find("[")
+    dt, sfx = (s, "") if i < 0 else (s[:i], s[i:])
+    f = reference(dt)
+    if f is None or not IX_ITEMS.fullmatch(sfx):
+        return None
+    zone, tags = None, []
+    for k, body in enumerate(re.findall(r"\[([^\[\]]*)\]", sfx)):
+        crit = body.startswith("!")
+        b = body[1:] if crit else body
+        if k == 0 and "=" not in b:
+            z = ix_zone(b)
+            if z is None:
+                return None
+            zone = (crit, z)
+        else:
+            m = IX_TAG.fullmatch(b)
+            if not m:
+                return None
+            tags.append((crit, m.group(1), m.group(2).split("-")))
+    return f, sfx, zone, tags
+
+
+def ixdtf(s):
+    """The expected answer to `ixdtf`."""
+    r = ix_reference(s)
+    if r is None:
+        return "REJECT"
+    f, sfx, zone, tags = r
+    asserts = f["offset"] not in ("Z", "-00:00")
+    bad = False
+    if zone and zone[0]:
+        kind, z = zone[1]
+        m = z if kind == "offset" else IX_ZONES.get(z)
+        if m is None or (asserts and m != f["offset_minutes"]):
+            bad = True
+    for crit, key, values in tags:
+        known = key == "u-ca" and values in IX_CALENDARS
+        if crit and not known:
+            bad = True
+        if crit and any(k == key and v != values for _, k, v in tags):
+            bad = True
+        if key.startswith("_") and not known:
+            bad = True
+    cal = next(("-".join(v) for _, k, v in tags if k == "u-ca"), "-")
+    return f"OK\t{f['print']}{sfx}\t{'true' if bad else 'false'}\t{cal}"
+
+
+IX_EXAMPLES = [
+    "2022-07-08T00:14:07+01:00[Europe/Paris]", "2022-07-08T00:14:07Z[Europe/Paris]",
+    "2022-07-08T02:14:07+02:00[Europe/Paris]", "2022-07-08T00:14:07+01:00[knort=blargel]",
+    "2022-07-08T00:14:07+01:00[!Europe/Paris]", "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]",
+    "2022-07-08T00:14:07Z[u-ca=chinese][!u-ca=japanese]", "2022-07-08T00:14:07Z[!knort=blargel]",
+    "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]", "2022-07-08T00:14:07Z[u-ca=chinese]",
+    "2022-07-08T00:14:07+00:00[!Europe/London]", "2022-07-08T00:14:07+00:00[Europe/London]",
+    "2022-07-08T00:14:07Z[!Europe/London]", "2022-07-08T00:14:07Z[Europe/London]",
+    "1996-12-19T16:39:57-08:00", "1996-12-19T16:39:57-08:00[America/Los_Angeles]",
+    "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]",
+    "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]",
+]
+IX_NAMES = ["Europe/Paris", "Europe/London", "America/Los_Angeles", "Asia/Tokyo", "UTC", "Etc/GMT+5",
+            "America/Argentina/Buenos_Aires", "_x", ".a", "a.b-c+d_e", "Z", "z"]
+IX_KEYS = ["u-ca", "u-ca", "knort", "_foo", "x", "a-b_c9", "_"]
+IX_VALUES = [["chinese"], ["japanese"], ["hebrew"], ["gregory"], ["blargel"], ["a", "b"], ["X1"], ["0"]]
+
+
+def ix_offset_text(rng):
+    m = rng.choice([0, 60, 120, -480, 330, -1439, 1439])
+    return ("+" if m >= 0 else "-") + f"{abs(m) // 60:02d}:{abs(m) % 60:02d}"
+
+
+def random_suffix(rng):
+    items = []
+    if rng.random() < 0.6:
+        flag = "!" if rng.random() < 0.3 else ""
+        body = ix_offset_text(rng) if rng.random() < 0.2 else rng.choice(IX_NAMES)
+        items.append(f"[{flag}{body}]")
+    for _ in range(rng.choice([0, 1, 1, 2, 3])):
+        flag = "!" if rng.random() < 0.3 else ""
+        items.append(f"[{flag}{rng.choice(IX_KEYS)}={'-'.join(rng.choice(IX_VALUES))}]")
+    return "".join(items)
+
+
+def mutate_suffix(rng, sfx):
+    """A suffix with one change that is likely to break the grammar."""
+    op = rng.randrange(10)
+    c = list(sfx)
+    if op == 0 and c:
+        c[rng.randrange(len(c))] = rng.choice("[]!=-/.+_aZ0 ")
+    elif op == 1 and c:
+        del c[rng.randrange(len(c))]
+    elif op == 2:
+        c.insert(rng.randint(0, len(c)), rng.choice("[]!=-/.+_aZ0"))
+    elif op == 3:
+        return sfx + rng.choice(["[]", "[!]", "[=x]", "[x=]", "[.]", "[..]", "[a/..]", "[a//b]"])
+    elif op == 4:
+        return sfx + "[U-ca=x]"
+    elif op == 5:
+        return sfx + "[u-ca=a--b]"
+    elif op == 6:
+        return sfx + "[" + rng.choice(IX_NAMES) + "]"
+    elif op == 7:
+        return sfx + rng.choice(["[+24:00]", "[+23:60]", "[Z]", "[+1:00]", "[!!u-ca=x]"])
+    elif op == 8:
+        return sfx.replace("[", "", 1)
+    else:
+        return sfx + "["
+    return "".join(c)
+
+
+def random_ixdtf(rng):
+    base = random_valid(rng) if rng.random() < 0.7 else stamp(
+        2022, 7, 8, 0, 14, 7, "", rng.choice(["Z", "-00:00", "+00:00", "+01:00", "+02:00", "-08:00"]))
+    sfx = random_suffix(rng)
+    if rng.random() < 0.3:
+        sfx = mutate_suffix(rng, sfx)
+    return base + sfx
 
 
 def unix_grid():
@@ -548,6 +706,10 @@ MALFORMED = [
     ("fromsi +1", "a plus sign"),
     ("fromsi 1.5", "a fraction"),
     ("fromsi 1 2", "two numbers"),
+    ("ixdtf", "no argument"),
+    ("ixdtf 3", "an odd number of hex digits"),
+    ("ixdtf 30 30", "two arguments"),
+    ("ixdtf ff", "not UTF-8"),
 ]
 
 # A last line with no LF must still be answered.
@@ -577,6 +739,8 @@ def cases(seed, count):
         fixed.append(("known", f"known {hexed(s)}", known(s), False))
     for n in si_grid():
         fixed.append(("fromsi", f"fromsi {n}", from_si(n), False))
+    for s in IX_EXAMPLES:
+        fixed.append(("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False))
     for req, _ in MALFORMED:
         fixed.append(("error", req, "error", False))
     made = 0
@@ -585,6 +749,11 @@ def cases(seed, count):
         made += 1
     while made < count:
         r = rng.random()
+        if r < 0.03:
+            s = random_ixdtf(rng)
+            yield ("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False)
+            made += 1
+            continue
         if r < 0.06:
             s = random_valid(rng) if rng.random() < 0.8 else leap_pair(rng)[0]
             yield ("known", f"known {hexed(s)}", known(s), False)
@@ -741,8 +910,9 @@ def check_mode(items, limit=20000, batch=500):
 
 def oracle():
     return (f"Python {platform.python_version()} `datetime` and `calendar`, the "
-            f"RFC 3339 rules copied into this script, and for leap seconds tzdata's "
-            f"`{LEAP_FILE}`, read by this script")
+            f"RFC 3339 rules copied into this script, for leap seconds tzdata's "
+            f"`{LEAP_FILE}`, read by this script, and for RFC 9557 its grammar and rules "
+            f"written in this script")
 
 
 def lean_version():
@@ -837,6 +1007,7 @@ def main():
     known_leaps = sum(1 for label, req, want, _ in items if label == "known" and
                       want.startswith("OK") and reference(bytes.fromhex(req.split(" ")[1]).decode())["second"] == 60)
     from_si_wants = [want for label, _, want, _ in items if label == "fromsi"]
+    ix_wants = [want for label, _, want, _ in items if label == "ixdtf"]
     expires = datetime(1900, 1, 1) + timedelta(seconds=LEAP_EXPIRES) if LEAP_EXPIRES else None
     mutated = sum(1 for item in items if item[3])
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
@@ -868,6 +1039,10 @@ def main():
         f"- SI seconds turned back into timestamps (`fromsi`): {len(from_si_wants)}, of which "
         f"{sum(1 for w in from_si_wants if w[17:19] == '60')} leap seconds and "
         f"{from_si_wants.count('NONE')} outside 1972 to 9999",
+        f"- RFC 9557 strings (`ixdtf`): {len(ix_wants)}, of which "
+        f"{sum(1 for w in ix_wants if w.startswith('OK'))} read, "
+        f"{sum(1 for w in ix_wants if w.startswith('OK') and w.split(chr(9))[2] == 'true')} of them "
+        f"erroneous for the example application, and {ix_wants.count('REJECT')} refused",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",
