@@ -18,7 +18,14 @@ def leapMonths : List (Nat × Nat) :=
    (1989, 12), (1990, 12), (1992, 6), (1993, 6), (1994, 6), (1995, 12), (1997, 6),
    (1998, 12), (2005, 12), (2008, 12), (2012, 6), (2015, 6), (2016, 12)]
 
-/-- The year and month, in UTC, of the minute the timestamp falls in. -/
+/-- The year and month, in UTC, of the minute the timestamp falls in.
+    There is one edge case. A timestamp on 0000-01-01 with a positive
+    offset can name an instant before 0000-01-01T00:00:00Z, as
+    `0000-01-01T00:59:60+01:00` does. Its UTC month is the December
+    before year 0000, which a `Nat` year cannot hold, and the result is
+    (0, 1). This cannot change `isValidKnown`: (0, 1) is not in
+    `leapMonths`, which starts in 1972, and `Spec.isValidKnown_iff`
+    fixes `isValidKnown` for every timestamp. -/
 def Timestamp.utcMonth (t : Timestamp) : Nat × Nat :=
   let (y, m, _) := fromDayNumber (t.utcMinute / 1440).toNat
   (y, m)
@@ -44,12 +51,20 @@ def Timestamp.leapsBefore (t : Timestamp) : Nat :=
 /-- SI seconds from 1972-01-01T00:00:00Z to the timestamp, leaving out
     the fraction: Unix seconds, which give each day 86400, and one more
     for each leap second of the table before it. 63072000 is the Unix
-    seconds of 1972-01-01T00:00:00Z. -/
+    seconds of 1972-01-01T00:00:00Z. Before that instant the result is
+    only a formal value: Unix seconds less 63072000, 86400 to a day.
+    UTC then ran on seconds of varying length, so these are not SI
+    seconds. SPEC.md says so under "Leap seconds, with the table", as
+    does `Spec.siSeconds_eq`. -/
 def Timestamp.siSeconds (t : Timestamp) : Int :=
   t.unixSeconds - 63072000 + t.leapsBefore
 
 /-- TAI − UTC at the timestamp, in seconds: 10 from the start of 1972,
-    and one more after each leap second. -/
+    and one more after each leap second. Before 1972-01-01T00:00:00Z
+    the result is only a formal value, 10, with no meaning. TAI − UTC
+    was then not a whole number of seconds. The tool's `known` request
+    prints `-` for it there. SPEC.md says so under "Leap seconds, with
+    the table", as does `Spec.taiMinusUtc_leapsBefore`. -/
 def Timestamp.taiMinusUtc (t : Timestamp) : Nat :=
   10 + t.leapsBefore
 
