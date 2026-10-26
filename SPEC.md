@@ -79,7 +79,7 @@ RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. Afte
 - the time zone, if there is one, with whether it is critical, its name as the parts between the slashes, or its offset;
 - the tags in order, each with whether it is critical, its key, and its values as the parts between the hyphens.
 
-It reads exactly the strings of the grammar, and a string with no suffix exactly as `parse` reads it. `Ext.print` writes an `Ext` back, with `T` and `Z` in upper case.
+It reads exactly the strings of the grammar, with the timestamp as `parse` reads it, second 60 at the end of any month included, and a string with no suffix exactly as `parse` reads it. `Ext.print` writes an `Ext` back, with `T` and `Z` in upper case.
 
 `Ext.lookup` gives the first tag with a key. Section 3.3 has an application that does not handle a repeated elective key choose the first.
 
@@ -139,7 +139,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Spec.parseExt_plain` |
 | `lookup` gives the first tag with the key. | `Spec.lookup_iff` |
 | `erroneous` decides `Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Spec.erroneous_iff` |
-| The examples of sections 3.3, 3.4 and 4.2 are read, and are erroneous for the example application exactly where the RFC says; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
+| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
 
 Together, these fix every output for valid input.
 
@@ -153,7 +153,7 @@ Together, these fix every output for valid input.
 
 ## Oracle
 
-The differential tests compare the tool with two oracles:
+The differential tests compare the tool with these oracles:
 
 - Python's `datetime` and `calendar` modules: month lengths, offset arithmetic, seconds since the epoch, `datetime.fromisoformat` on every accepted string it can hold, and the UTC timestamp for a number of seconds. `datetime` holds no year 0, so dates there are moved by 400 years, one cycle of the Gregorian calendar, for the arithmetic.
 - A copy of the rules above, written in Python from the RFC.

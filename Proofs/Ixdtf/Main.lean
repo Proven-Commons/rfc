@@ -72,16 +72,44 @@ theorem vx_parseExt (s : String) (e : Ext) (dt : List Char) (hv : vx_validB e = 
     parseExt s = some e :=
   (Rfc3339.Proofs.Ixdtf.parseExt_iff s e).2 ⟨vx_validB_sound e hv, dt, hs, hd⟩
 
+/-- Every example of RFC 9557, in sections 1.2, 3.3, 3.4 and 4.2, with
+    the application of `Spec.exampleProcessor`: each one is read, and is
+    erroneous exactly where the RFC says it must be treated so. Also
+    critical time zones that agree with the offset, a critical `-00:00`
+    zone that does not, and strings the grammar refuses. -/
 theorem Spec.ixdtf_vectors :
-    (parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" =
+    -- Section 4.2, Figures 4 to 7
+    parseExt "1996-12-19T16:39:57-08:00" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none, []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+        some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" =
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
         some (false, .name ["America".toList, "Los_Angeles".toList]),
-        [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩) ∧
-    (parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" =
+        [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" =
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none,
-        [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩) ∧
-    -- Elective: an inconsistent zone, an unknown key, repeated keys
+        [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩ ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    -- An experiment the application does not take part in
+    ((parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    -- Section 1.2: an offset time zone
+    parseExt "2022-07-08T00:14:07+08:45[+08:45]" =
+      some ⟨⟨2022, 7, 8, 0, 14, 7, [], .plus 8 45⟩, some (false, .offset (.plus 8 45)), []⟩ ∧
+    ((parseExt "2022-07-08T00:14:07+08:45[!+08:45]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    -- Section 3.3, elective: an inconsistent zone, the zones of the note,
+    -- an unknown key, repeated keys
     ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
       some false) ∧
     ((parseExt "2022-07-08T00:14:07+01:00[knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
       some false) ∧
@@ -89,7 +117,9 @@ theorem Spec.ixdtf_vectors :
       (·.erroneous Spec.exampleProcessor) = some false) ∧
     ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").bind (·.lookup "u-ca".toList) =
       some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
-    -- Critical: the four of section 3.3
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese]").bind (·.lookup "u-ca".toList) =
+      some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
+    -- Section 3.3, critical: the four examples
     ((parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
       some true) ∧
     ((parseExt "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]").map
@@ -98,7 +128,7 @@ theorem Spec.ixdtf_vectors :
       (·.erroneous Spec.exampleProcessor) = some true) ∧
     ((parseExt "2022-07-08T00:14:07Z[!knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
       some true) ∧
-    -- Figures 1 and 2 of section 3.4
+    -- Section 3.4, Figures 1 and 2
     ((parseExt "2022-07-08T00:14:07+00:00[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
       some true) ∧
     ((parseExt "2022-07-08T00:14:07+00:00[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
@@ -107,12 +137,18 @@ theorem Spec.ixdtf_vectors :
       some false) ∧
     ((parseExt "2022-07-08T00:14:07Z[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
       some false) ∧
-    -- An experiment the application does not take part in
-    ((parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]").map
-      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    -- Critical zones that agree with the offset, and a critical `-00:00`
+    -- zone, offset 0, under an offset of +01:00
+    ((parseExt "1996-12-19T16:39:57-08:00[!America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T01:14:07+01:00[!-00:00]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    -- `Z` in brackets is a zone name, not an offset
+    ((parseExt "2022-07-08T00:14:07Z[Z]").map (·.zone) = some (some (false, .name ["Z".toList]))) ∧
     -- Refused by the grammar: an empty item, `.` and `..`, an upper case
-    -- key, an empty value, a time zone after a tag, `Z` as an offset
-    -- (it reads as a zone name), an offset out of range
+    -- key, an empty value, a time zone after a tag, an offset out of range
     parseExt "2022-07-08T00:14:07Z[]" = none ∧
     parseExt "2022-07-08T00:14:07Z[.]" = none ∧
     parseExt "2022-07-08T00:14:07Z[a/..]" = none ∧
@@ -121,12 +157,36 @@ theorem Spec.ixdtf_vectors :
     parseExt "2022-07-08T00:14:07Z[u-ca=x][Europe/Paris]" = none ∧
     parseExt "2022-07-08T00:14:07Z[+24:00]" = none := by
   and_intros
+  · exact vx_parseExt "1996-12-19T16:39:57-08:00" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, none, []⟩
+        "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)
+  · exact vx_parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩
+        "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)
   · exact vx_parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, some (false, .name ["America".toList, "Los_Angeles".toList]), [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩
         "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)
   · exact vx_parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, none, [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩
         "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)
+  · rw [vx_parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩
+        "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, some (false, .name ["America".toList, "Los_Angeles".toList]), [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩
+        "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, none, [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩
+        "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · exact vx_parseExt "2022-07-08T00:14:07+08:45[+08:45]" ⟨⟨2022, 7, 8, 0, 14, 7, [], (.plus 8 45)⟩, some (false, .offset (.plus 8 45)), []⟩
+        "2022-07-08T00:14:07+08:45".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)
+  · rw [vx_parseExt "2022-07-08T00:14:07+08:45[!+08:45]" ⟨⟨2022, 7, 8, 0, 14, 7, [], (.plus 8 45)⟩, some (true, .offset (.plus 8 45)), []⟩
+        "2022-07-08T00:14:07+08:45".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
   · rw [vx_parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]" ⟨⟨2022, 7, 8, 0, 14, 7, [], (.plus 1 0)⟩, some (false, .name ["Europe".toList, "Paris".toList]), []⟩
         "2022-07-08T00:14:07+01:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T00:14:07Z[Europe/Paris]" ⟨⟨2022, 7, 8, 0, 14, 7, [], .z⟩, some (false, .name ["Europe".toList, "Paris".toList]), []⟩
+        "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]" ⟨⟨2022, 7, 8, 2, 14, 7, [], (.plus 2 0)⟩, some (false, .name ["Europe".toList, "Paris".toList]), []⟩
+        "2022-07-08T02:14:07+02:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
     decide +kernel
   · rw [vx_parseExt "2022-07-08T00:14:07+01:00[knort=blargel]" ⟨⟨2022, 7, 8, 0, 14, 7, [], (.plus 1 0)⟩, none, [⟨false, "knort".toList, ["blargel".toList]⟩]⟩
         "2022-07-08T00:14:07+01:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
@@ -135,6 +195,9 @@ theorem Spec.ixdtf_vectors :
         "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
     decide +kernel
   · rw [vx_parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]" ⟨⟨2022, 7, 8, 0, 14, 7, [], .z⟩, none, [⟨false, "u-ca".toList, ["chinese".toList]⟩, ⟨false, "u-ca".toList, ["japanese".toList]⟩]⟩
+        "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T00:14:07Z[u-ca=chinese]" ⟨⟨2022, 7, 8, 0, 14, 7, [], .z⟩, none, [⟨false, "u-ca".toList, ["chinese".toList]⟩]⟩
         "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
     decide +kernel
   · rw [vx_parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]" ⟨⟨2022, 7, 8, 0, 14, 7, [], (.plus 1 0)⟩, some (true, .name ["Europe".toList, "Paris".toList]), []⟩
@@ -161,8 +224,17 @@ theorem Spec.ixdtf_vectors :
   · rw [vx_parseExt "2022-07-08T00:14:07Z[Europe/London]" ⟨⟨2022, 7, 8, 0, 14, 7, [], .z⟩, some (false, .name ["Europe".toList, "London".toList]), []⟩
         "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
     decide +kernel
-  · rw [vx_parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, none, [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩
+  · rw [vx_parseExt "1996-12-19T16:39:57-08:00[!America/Los_Angeles]" ⟨⟨1996, 12, 19, 16, 39, 57, [], (.minus 8 0)⟩, some (true, .name ["America".toList, "Los_Angeles".toList]), []⟩
         "1996-12-19T16:39:57-08:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]" ⟨⟨2022, 7, 8, 2, 14, 7, [], (.plus 2 0)⟩, some (true, .name ["Europe".toList, "Paris".toList]), []⟩
+        "2022-07-08T02:14:07+02:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T01:14:07+01:00[!-00:00]" ⟨⟨2022, 7, 8, 1, 14, 7, [], (.plus 1 0)⟩, some (true, .offset (.minus 0 0)), []⟩
+        "2022-07-08T01:14:07+01:00".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
+    decide +kernel
+  · rw [vx_parseExt "2022-07-08T00:14:07Z[Z]" ⟨⟨2022, 7, 8, 0, 14, 7, [], .z⟩, some (false, .name ["Z".toList]), []⟩
+        "2022-07-08T00:14:07Z".toList (by decide +kernel) (by decide +kernel) (by decide +kernel)]
     decide +kernel
   · decide +kernel
   · decide +kernel

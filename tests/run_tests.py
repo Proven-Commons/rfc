@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Differential tests: the Lean parser against Python's date code.
 
-There are two oracles:
+For RFC 3339 itself there are two oracles:
 
 - Python's `datetime` and `calendar` modules. `calendar.isleap` and
   `calendar.mdays` give the month lengths, `datetime` arithmetic applies
@@ -56,14 +56,15 @@ Inputs come from a recorded seed:
   critical tags (sections 3.2 to 3.4), written again in this script.
   `ixdtf` requests must give the printed form, whether the example
   application must treat the string as erroneous, and the first `u-ca`
-  tag. The inputs are every example of sections 3.3, 3.4 and 4.2, the
+  tag. The inputs are every example of sections 1.2, 3.3, 3.4 and 4.2, the
   edges of the grammar and rules written out below,
   random timestamps with random suffixes (time zones by name and by
   offset, tags with known, unknown and experimental keys, each item
   elective or critical, keys repeated), and those suffixes mutated: a
-  character changed, dropped or added, a bracket or `!` moved, a key in
-  upper case, `.` or `..` as a zone part, an empty item or value, a
-  time zone after a tag;
+  character changed, dropped or added, brackets, `!` and `=` among them,
+  the first bracket dropped or a last one left open, a key in upper
+  case, `.` or `..` as a zone part, an empty item or value, a time zone
+  after a tag;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
@@ -306,7 +307,7 @@ IX_EXAMPLES = [
     "2022-07-08T00:14:07Z[!Europe/London]", "2022-07-08T00:14:07Z[Europe/London]",
     "1996-12-19T16:39:57-08:00", "1996-12-19T16:39:57-08:00[America/Los_Angeles]",
     "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]",
-    "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]",
+    "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]", "2022-07-08T00:14:07+08:45[+08:45]",
 ]
 # The edges of the grammar and the rules, each written once.
 IX_EDGES = [
@@ -329,16 +330,31 @@ IX_EDGES = [
     "2022-07-08T00:14:07Z[/Europe]", "2022-07-08T00:14:07Z[Europe/]", "2022-07-08T00:14:07Z[Z]",
     "2022-07-08T00:14:07Z[UTC][u-ca=hebrew]", "2022-07-08T00:14:07Z[u-ca=Hebrew]",
     "1990-12-31T23:59:60Z[u-ca=hebrew]", "2022-07-08t00:14:07z[u-ca=hebrew]",
+    # A critical -00:00 zone is offset 0, whatever the timestamp's offset
+    "2022-07-08T01:14:07+01:00[!-00:00]", "2022-07-07T16:14:07-08:00[!-00:00]",
+    "2022-07-08T00:14:07Z[!-00:00]",
+    # Critical zones that agree with an asserted offset
+    "1996-12-19T16:39:57-08:00[!America/Los_Angeles]", "2022-07-08T00:14:07+08:45[!+08:45]",
+    "2022-07-08T00:14:07+01:00[!+08:45]",
+    # A critical tag whose key another tag uses with values that share
+    # its first part, and two critical tags with one key
+    "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=chinese-japanese]",
+    "2022-07-08T00:14:07Z[u-ca=chinese-japanese][!u-ca=chinese]",
+    "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=japanese]",
+    "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=chinese]",
 ]
 IX_NAMES = ["Europe/Paris", "Europe/London", "America/Los_Angeles", "Asia/Tokyo", "UTC", "Etc/GMT+5",
             "America/Argentina/Buenos_Aires", "_x", ".a", "a.b-c+d_e", "Z", "z"]
 IX_KEYS = ["u-ca", "u-ca", "knort", "_foo", "x", "a-b_c9", "_"]
-IX_VALUES = [["chinese"], ["japanese"], ["hebrew"], ["gregory"], ["blargel"], ["a", "b"], ["X1"], ["0"]]
+IX_VALUES = [["chinese"], ["japanese"], ["hebrew"], ["gregory"], ["blargel"], ["a", "b"], ["X1"], ["0"],
+             ["chinese", "japanese"]]
 
 
 def ix_offset_text(rng):
+    """An offset as RFC 3339 writes it; 0 as `+00:00` or `-00:00`."""
     m = rng.choice([0, 60, 120, -480, 330, -1439, 1439])
-    return ("+" if m >= 0 else "-") + f"{abs(m) // 60:02d}:{abs(m) % 60:02d}"
+    sign = "+" if m > 0 or (m == 0 and rng.random() < 0.5) else "-"
+    return sign + f"{abs(m) // 60:02d}:{abs(m) % 60:02d}"
 
 
 def random_suffix(rng):

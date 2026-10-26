@@ -195,18 +195,21 @@ def ix_category(s, ours_ok):
         if len(f["fraction"]) > 9:
             return "a fraction of more than nine digits, finer than Temporal's nanoseconds"
         if (zone and zone[0]) or any(c for c, _, _ in tags):
-            return "a critical item, which Temporal refuses when it does not act on it"
+            return "a critical flag, which this Temporal refuses on any item"
         if any(k.startswith("_") for _, k, _ in tags):
             return "an experimental key"
         if len([k for _, k, _ in tags if k == "u-ca"]) > 1:
             return "a repeated elective `u-ca`"
         if any(k != "u-ca" for _, k, _ in tags):
             return "an unknown elective key"
-        if tags and tags[0][2] not in run_tests.IX_CALENDARS:
-            return "a calendar Temporal does not know"
-        if zone and zone[1][0] == "name" and "/" not in zone[1][1]:
-            return "a one-part time zone name"
+        if tags and any(not 3 <= len(p) <= 8 for p in tags[0][2]):
+            return "a calendar with a part outside 3 to 8 characters, which the older proposal refuses"
         if zone and zone[1][0] == "name":
+            parts = zone[1][1].split("/")
+            etc_gmt = re.fullmatch(r"Etc/GMT[+-](?:[0-9]|1[0-4])", zone[1][1])
+            if not etc_gmt and any(re.search(r"[0-9+]", q) or len(q) > 14 for q in parts):
+                return ("a time zone name with a digit or `+`, or a part over 14 characters, "
+                        "which the older proposal refuses")
             return "another time zone name"
         return "other"
     i = s.find("[")
