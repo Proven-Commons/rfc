@@ -313,11 +313,16 @@ theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
     `date-time = full-date "T" full-time`,
     `full-time = partial-time time-offset` and
     `partial-time = time-hour ":" time-minute ":" time-second [time-secfrac]`.
-    Each of the others is read, and is erroneous exactly where the RFC
-    says it must be treated so. Also critical time zones that agree with
-    the offset, a critical `-00:00` zone that does not, two strings
-    judged by the application of `Spec.secondProcessor`, and other
-    strings the grammar refuses. -/
+    Each of the others is read. Sixteen of them are judged, and are
+    erroneous exactly where the RFC says they must be treated so. Two
+    are given only as their `Ext`: `1996-12-19T16:39:57-08:00`, of
+    Figure 4, and `2022-07-08T00:14:07+08:45[+08:45]`, of section 1.2.
+    One is given only by its first `u-ca` tag:
+    `2022-07-08T00:14:07Z[u-ca=chinese]`, which section 3.3 says is
+    treated the same as `2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]`.
+    Also critical time zones that agree with the offset, a critical
+    `-00:00` zone that does not, two strings judged by the application
+    of `Spec.secondProcessor`, and other strings the grammar refuses. -/
 theorem Spec.ixdtf_vectors :
     -- Section 4.2, Figures 4 to 7
     parseExt "1996-12-19T16:39:57-08:00" =

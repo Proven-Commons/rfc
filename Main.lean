@@ -40,15 +40,16 @@
                       or REJECT
 
   The `ixdtf` answer `true` or `false` is the example application's
-  only. `Spec.ixdtf_vectors` judges the RFC's examples with it, and the
-  tests use it too, since they need a fixed one. It knows three zones.
-  Each has one fixed offset, whatever the instant: Europe/Paris +02:00,
-  Europe/London +01:00 and America/Los_Angeles -08:00. These are their
-  offsets at the instants of the RFC's examples in sections 3.3, 3.4
-  and 4.2: July 2022 for Paris and London, December 1996 for Los
-  Angeles. So `2022-01-08T00:14:07+01:00[!Europe/Paris]` is judged
-  erroneous, although Paris is at +01:00 in January. A real application
-  passes its own `Processor` to `Ext.erroneous`.
+  only. `Spec.ixdtf_vectors` uses it for its verdicts on the RFC's
+  examples, and the tests use it too, since they need a fixed one. It
+  knows three zones. Each has one fixed offset, whatever the instant:
+  Europe/Paris +02:00, Europe/London +01:00 and
+  America/Los_Angeles -08:00. These are their offsets at the instants
+  of the RFC's examples in sections 3.3, 3.4 and 4.2: July 2022 for
+  Paris and London, December 1996 for Los Angeles. So
+  `2022-01-08T00:14:07+01:00[!Europe/Paris]` is judged erroneous,
+  although Paris is at +01:00 in January. A real application passes
+  its own `Processor` to `Ext.erroneous`.
 
   A malformed request prints `error`: an unknown operation, hex digits
   that are not in pairs, bytes that are not UTF-8, or a number that is
