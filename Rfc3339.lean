@@ -8,3 +8,6 @@ import Rfc3339.Calendar
 import Rfc3339.Format
 import Rfc3339.Instant
 import Rfc3339.FromUnix
+import Rfc3339.Leap
+import Rfc3339.IxdtfTypes
+import Rfc3339.Ixdtf

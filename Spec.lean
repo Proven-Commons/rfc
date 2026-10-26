@@ -14,6 +14,8 @@
 
 import Rfc3339
 import Spec.Defs
+import Spec.Leap
+import Spec.Ixdtf
 
 open Rfc3339
 
@@ -175,3 +177,208 @@ theorem Spec.fromUnixSeconds_vectors :
     Rfc3339.fromUnixSeconds 253402300799 = some ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-62167219201) = none ∧
     Rfc3339.fromUnixSeconds 253402300800 = none := sorry
+
+/-! ## Leap seconds, with the table -/
+
+/-- `isValidKnown` decides section 5.7 with the table of leap seconds:
+    as `isValid`, but second 60 only at one of the table's leap seconds,
+    at the same instant whatever the offset. -/
+theorem Spec.isValidKnown_iff (t : Timestamp) :
+    t.isValidKnown = true ↔ Spec.ValidKnown t := sorry
+
+/-- `siSeconds` is the Unix seconds from 1972-01-01T00:00:00Z to the
+    timestamp, leaving out the fraction, and one more for each leap
+    second of the table before it. From 1972 on, those are the SI
+    seconds between them; before 1972 there are no leap seconds, and the
+    number is Unix seconds, 86400 to a day, not SI seconds. -/
+theorem Spec.siSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
+    t.siSeconds = Spec.siSeconds t := sorry
+
+/-- On whole seconds, valid by the table, `siSeconds` orders timestamps
+    exactly as the instants they name. So no two instants share a
+    number, a leap second and the second after it included. -/
+theorem Spec.siSeconds_order (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
+    (fa : a.fraction = []) (fb : b.fraction = []) :
+    compare a.siSeconds b.siSeconds = a.compareInstant b := sorry
+
+/-- `fromSiSeconds` turns SI seconds since 1972-01-01T00:00:00Z back into
+    a timestamp: the one, at most one, in UTC, with no fraction, valid by
+    the table and from 1972 on, that has those SI seconds. A leap second
+    comes back as second 60. -/
+theorem Spec.fromSiSeconds_iff (n : Int) (t : Timestamp) :
+    fromSiSeconds n = some t ↔
+      t.offset = .z ∧ t.fraction = [] ∧ Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
+        Spec.siSeconds t = n := sorry
+
+/-- `fromSiSeconds` gives a timestamp exactly for the seconds from
+    1972-01-01T00:00:00Z to 9999-12-31T23:59:59Z. -/
+theorem Spec.fromSiSeconds_isSome (n : Int) :
+    (fromSiSeconds n).isSome ↔
+      0 ≤ n ∧ n ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
+
+/-- `taiMinusUtc` is 10, and one more for each leap second of the table
+    before the timestamp. So during a leap second it is still the value
+    from before it. (Before 1972, UTC was not a whole number of seconds
+    from TAI, and the 10 there means nothing.) -/
+theorem Spec.taiMinusUtc_leapsBefore (t : Timestamp) (h : Spec.Valid t) :
+    t.taiMinusUtc = 10 + Spec.leapsBefore t := sorry
+
+/-- TAI − UTC at each second from 1972 on, other than a leap second, is
+    the value the table's second column gives for it. The code never
+    reads that column: it counts leap seconds. -/
+theorem Spec.taiMinusUtc_eq (t : Timestamp) (h : Spec.Valid t) (h60 : t.second ≠ 60)
+    (h72 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ ≤ Spec.unixSeconds t) :
+    t.taiMinusUtc = Spec.taiMinusUtcAt (Spec.ntpOfUnix (Spec.unixSeconds t)) := sorry
+
+/-- The leap seconds of section 5.8, the first and the last of the
+    table, one seen from another offset, and second 60 in months that
+    had none; SI seconds and TAI − UTC around the first and the last;
+    and the round trip that Unix seconds lose and SI seconds keep. -/
+theorem Spec.leap_table_vectors :
+    Timestamp.isValidKnown ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨1990, 12, 31, 15, 59, 60, [], .minus 8 0⟩ = true ∧
+    Timestamp.isValidKnown ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨2017, 1, 1, 0, 59, 60, [], .plus 1 0⟩ = true ∧
+    Timestamp.isValidKnown ⟨2015, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.isValidKnown ⟨1971, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.isValidKnown ⟨2026, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.siSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 0 ∧
+    Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 59, [], .z⟩ = 15724799 ∧
+    Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 15724800 ∧
+    Timestamp.siSeconds ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 15724801 ∧
+    Timestamp.siSeconds ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 1420156827 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 1420156825 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 1420156826 ∧
+    Timestamp.taiMinusUtc ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 59, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 11 ∧
+    Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 36 ∧
+    Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 36 ∧
+    Timestamp.taiMinusUtc ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 37 ∧
+    fromSiSeconds 15724800 = some ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ ∧
+    fromSiSeconds 1420156826 = some ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ ∧
+    fromSiSeconds 1420156827 = some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ ∧
+    fromUnixSeconds (Timestamp.unixSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩) =
+      some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ := sorry
+
+/-! ## RFC 9557: the Internet Extended Date/Time Format -/
+
+/-- `parseExt` returns `e` exactly when `e` is an IXDTF timestamp the
+    grammar of section 4.1 allows and the string is how it is written:
+    the RFC 3339 part with `T` and `Z` in either case, then the suffix
+    as written. So it accepts nothing outside the grammar, rejects
+    nothing inside it, and returns the time zone and tags as written. -/
+theorem Spec.parseExt_iff (s : String) (e : Ext) :
+    parseExt s = some e ↔
+      Spec.ExtValid e ∧ ∃ dt, s.toList = dt ++ Spec.renderSuffix e ∧
+        dt.map Spec.asciiUpper = Spec.render e.stamp := sorry
+
+/-- An IXDTF timestamp prints as the grammar writes it, with `T` and `Z`
+    in upper case. -/
+theorem Spec.printExt_eq (e : Ext) (h : Spec.ExtValid e) :
+    e.print.toList = Spec.render e.stamp ++ Spec.renderSuffix e := sorry
+
+/-- Round trip: printing then parsing gives the IXDTF timestamp back. -/
+theorem Spec.parseExt_print (e : Ext) (h : Spec.ExtValid e) : parseExt e.print = some e := sorry
+
+/-- IXDTF extends RFC 3339: a string with no suffix reads as `parse`
+    reads it, with no time zone and no tags. -/
+theorem Spec.parseExt_plain (s : String) (h : '[' ∉ s.toList) :
+    parseExt s = (parse s).map fun t => ⟨t, none, []⟩ := sorry
+
+/-- `lookup` gives the first tag with the key, which section 3.3 has an
+    application choose when an elective key is repeated. -/
+theorem Spec.lookup_iff (e : Ext) (k : List Char) (t : Tag) :
+    e.lookup k = some t ↔ ∃ l r, e.tags = l ++ t :: r ∧ t.key = k ∧ ∀ u ∈ l, u.key ≠ k := sorry
+
+/-- `erroneous` decides what sections 3.2 to 3.4 make an application
+    treat as erroneous. -/
+theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
+    e.erroneous p = true ↔ Spec.MustReject p e := sorry
+
+/-- Every example of RFC 9557, in sections 1.2, 3.3, 3.4 and 4.2, with
+    the application of `Spec.exampleProcessor`: each one is read, and is
+    erroneous exactly where the RFC says it must be treated so. Also
+    critical time zones that agree with the offset, a critical `-00:00`
+    zone that does not, and strings the grammar refuses. -/
+theorem Spec.ixdtf_vectors :
+    -- Section 4.2, Figures 4 to 7
+    parseExt "1996-12-19T16:39:57-08:00" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none, []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+        some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+        some (false, .name ["America".toList, "Los_Angeles".toList]),
+        [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩ ∧
+    parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]" =
+      some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none,
+        [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩ ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    -- An experiment the application does not take part in
+    ((parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    -- Section 1.2: an offset time zone
+    parseExt "2022-07-08T00:14:07+08:45[+08:45]" =
+      some ⟨⟨2022, 7, 8, 0, 14, 7, [], .plus 8 45⟩, some (false, .offset (.plus 8 45)), []⟩ ∧
+    ((parseExt "2022-07-08T00:14:07+08:45[!+08:45]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    -- Section 3.3, elective: an inconsistent zone, the zones of the note,
+    -- an unknown key, repeated keys
+    ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07+01:00[knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").bind (·.lookup "u-ca".toList) =
+      some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese]").bind (·.lookup "u-ca".toList) =
+      some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
+    -- Section 3.3, critical: the four examples
+    ((parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][!u-ca=japanese]").map
+      (·.erroneous Spec.exampleProcessor) = some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    -- Section 3.4, Figures 1 and 2
+    ((parseExt "2022-07-08T00:14:07+00:00[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    ((parseExt "2022-07-08T00:14:07+00:00[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    -- Critical zones that agree with the offset, and a critical `-00:00`
+    -- zone, offset 0, under an offset of +01:00
+    ((parseExt "1996-12-19T16:39:57-08:00[!America/Los_Angeles]").map
+      (·.erroneous Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      some false) ∧
+    ((parseExt "2022-07-08T01:14:07+01:00[!-00:00]").map (·.erroneous Spec.exampleProcessor) =
+      some true) ∧
+    -- `Z` in brackets is a zone name, not an offset
+    ((parseExt "2022-07-08T00:14:07Z[Z]").map (·.zone) = some (some (false, .name ["Z".toList]))) ∧
+    -- Refused by the grammar: an empty item, `.` and `..`, an upper case
+    -- key, an empty value, a time zone after a tag, an offset out of range
+    parseExt "2022-07-08T00:14:07Z[]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[.]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[a/..]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[U-ca=x]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[u-ca=a--b]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[u-ca=x][Europe/Paris]" = none ∧
+    parseExt "2022-07-08T00:14:07Z[+24:00]" = none := sorry
