@@ -20,6 +20,7 @@ files = ["SPEC.md", "Spec.lean", "Spec/Defs.lean", "Rfc3339/Types.lean"]
 code = [
   "Rfc3339.parse", "Rfc3339.Timestamp.print", "Rfc3339.Timestamp.isValid",
   "Rfc3339.Timestamp.unixSeconds", "Rfc3339.Timestamp.compareInstant",
+  "Rfc3339.fromUnixSeconds",
 ]
 
 # One entry per approval, added in a pull request the reviewer approves.

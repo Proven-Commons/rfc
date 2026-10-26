@@ -18,14 +18,19 @@
                       or REJECT
     compare HEX HEX   prints  <, = or >, or REJECT when either string
                       is not a timestamp
+    fromunix N        prints  the printed form of the UTC timestamp for N
+                      seconds since the epoch, or NONE when it falls
+                      outside the years 0000 to 9999; N is decimal, with
+                      an optional leading `-`
 
   A malformed request prints `error`: an unknown operation, hex digits
-  that are not in pairs, or bytes that are not UTF-8. A request line
+  that are not in pairs, bytes that are not UTF-8, or a number that is
+  not decimal. A request line
   may end in LF or CR LF.
 
   Every answer comes from the proved functions in `Rfc3339/`: `parse`,
-  `Timestamp.print`, `Timestamp.unixSeconds` and
-  `Timestamp.compareInstant`. The hex decoding and the request handling
+  `Timestamp.print`, `Timestamp.unixSeconds`,
+  `Timestamp.compareInstant` and `fromUnixSeconds`. The hex decoding and the request handling
   here are covered by the tests, not by a proof.
 -/
 
@@ -64,6 +69,11 @@ def showOrdering : Ordering → String
   | .eq => "="
   | .gt => ">"
 
+/-- A decimal number: an optional `-`, then one or more ASCII digits. -/
+def decimal (s : String) : Option Int :=
+  let ds := if s.startsWith "-" then s.drop 1 else s
+  if !ds.isEmpty && ds.all Char.isDigit then s.toInt? else none
+
 /-- The answer to one request line, or `none` when it is malformed. -/
 def request (line : String) : Option String :=
   match line.splitOn " " with
@@ -78,6 +88,11 @@ def request (line : String) : Option String :=
     pure <| match parse a, parse b with
       | some ta, some tb => showOrdering (ta.compareInstant tb)
       | _, _ => "REJECT"
+  | ["fromunix", n] => do
+    let s ← decimal n
+    pure <| match fromUnixSeconds s with
+      | some t => t.print
+      | none => "NONE"
   | _ => none
 
 /-- The line without its line ending: LF, or CR LF. -/
