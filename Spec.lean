@@ -14,6 +14,7 @@
 
 import Rfc3339
 import Spec.Defs
+import Spec.Leap
 
 open Rfc3339
 
@@ -175,3 +176,73 @@ theorem Spec.fromUnixSeconds_vectors :
     Rfc3339.fromUnixSeconds 253402300799 = some ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-62167219201) = none ∧
     Rfc3339.fromUnixSeconds 253402300800 = none := sorry
+
+/-! ## Leap seconds, with the table -/
+
+/-- `isValidKnown` decides section 5.7 with the table of leap seconds:
+    as `isValid`, but second 60 only at one of the table's leap seconds,
+    at the same instant whatever the offset. -/
+theorem Spec.isValidKnown_iff (t : Timestamp) :
+    t.isValidKnown = true ↔ Spec.ValidKnown t := sorry
+
+/-- `siSeconds` counts the SI seconds from 1972-01-01T00:00:00Z to the
+    timestamp, each leap second of the table included, leaving out the
+    fraction. -/
+theorem Spec.siSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
+    t.siSeconds = Spec.siSeconds t := sorry
+
+/-- On whole seconds, valid by the table, `siSeconds` orders timestamps
+    exactly as the instants they name. So no two instants share a
+    number: a leap second, the second before it and the second after
+    it get three numbers in a row. -/
+theorem Spec.siSeconds_order (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
+    (fa : a.fraction = []) (fb : b.fraction = []) :
+    compare a.siSeconds b.siSeconds = a.compareInstant b := sorry
+
+/-- `fromSiSeconds` turns SI seconds since 1972-01-01T00:00:00Z back into
+    a timestamp: the one, at most one, in UTC, with no fraction, valid by
+    the table and from 1972 on, that has those SI seconds. A leap second
+    comes back as second 60. -/
+theorem Spec.fromSiSeconds_iff (n : Int) (t : Timestamp) :
+    fromSiSeconds n = some t ↔
+      t.offset = .z ∧ t.fraction = [] ∧ Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
+        Spec.siSeconds t = n := sorry
+
+/-- `fromSiSeconds` gives a timestamp exactly for the seconds from
+    1972-01-01T00:00:00Z to 9999-12-31T23:59:59Z. -/
+theorem Spec.fromSiSeconds_isSome (n : Int) :
+    (fromSiSeconds n).isSome ↔
+      0 ≤ n ∧ n ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
+
+/-- TAI − UTC at each second from 1972 on, other than a leap second, is
+    the value the table's second column gives for it. The code never
+    reads that column: it counts leap seconds. -/
+theorem Spec.taiMinusUtc_eq (t : Timestamp) (h : Spec.Valid t) (h60 : t.second ≠ 60)
+    (h72 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ ≤ Spec.unixSeconds t) :
+    t.taiMinusUtc = Spec.taiMinusUtcAt (Spec.ntpOfUnix (Spec.unixSeconds t)) := sorry
+
+/-- The leap seconds of section 5.8, the first and the last of the
+    table, one seen from another offset, and second 60 in months that
+    had none; SI seconds and TAI − UTC around the first and the last;
+    and the round trip that Unix seconds lose and SI seconds keep. -/
+theorem Spec.leap_table_vectors :
+    Timestamp.isValidKnown ⟨1990, 12, 31, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨1990, 12, 31, 15, 59, 60, [], .minus 8 0⟩ = true ∧
+    Timestamp.isValidKnown ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = true ∧
+    Timestamp.isValidKnown ⟨2017, 1, 1, 0, 59, 60, [], .plus 1 0⟩ = true ∧
+    Timestamp.isValidKnown ⟨2015, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.isValidKnown ⟨1971, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.isValidKnown ⟨2026, 12, 31, 23, 59, 60, [], .z⟩ = false ∧
+    Timestamp.siSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 0 ∧
+    Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 59, [], .z⟩ = 15724799 ∧
+    Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 15724800 ∧
+    Timestamp.siSeconds ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 15724801 ∧
+    Timestamp.siSeconds ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 1420156827 ∧
+    Timestamp.taiMinusUtc ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 36 ∧
+    Timestamp.taiMinusUtc ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 37 ∧
+    fromSiSeconds 1420156826 = some ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ ∧
+    fromSiSeconds 1420156827 = some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ ∧
+    fromUnixSeconds (Timestamp.unixSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩) =
+      some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ := sorry

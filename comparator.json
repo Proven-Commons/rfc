@@ -18,7 +18,14 @@
     "Spec.syntax_vectors",
     "Spec.fromUnixSeconds_iff",
     "Spec.fromUnixSeconds_isSome",
-    "Spec.fromUnixSeconds_vectors"
+    "Spec.fromUnixSeconds_vectors",
+    "Spec.isValidKnown_iff",
+    "Spec.siSeconds_eq",
+    "Spec.siSeconds_order",
+    "Spec.fromSiSeconds_iff",
+    "Spec.fromSiSeconds_isSome",
+    "Spec.taiMinusUtc_eq",
+    "Spec.leap_table_vectors"
   ],
   "permitted_axioms": [
     "propext",

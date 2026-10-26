@@ -16,8 +16,18 @@ Go's `time.Parse` with the `time.RFC3339Nano` layout, and to
 `rfc3339_validator.validate_rfc3339`. Where a parser accepts what this
 one rejects, or the reverse, the string is put in the first category
 below that fits it. Where Go and this tool both accept a string, the
-instants must match to the nanosecond. The counts go to
-tests/CROSS-CHECK.md.
+instants must match to the nanosecond.
+
+For the leap second table, the timestamps tests/run_tests.py sends as
+`known` requests, and the SI seconds it sends as `fromsi`, go to ERFA,
+the C version of the IAU's SOFA library, through pyerfa, which keeps its
+own leap second table: `dat` gives TAI - UTC, and `dtf2d` with `utctai`
+the TAI time, from which the SI seconds since 1972-01-01T00:00:00Z
+follow. It needs pyerfa:
+
+    pip install --target .lake/oracle-packages pyerfa==2.0.1.5
+
+The counts go to tests/CROSS-CHECK.md.
 """
 
 import argparse
@@ -92,6 +102,85 @@ def go_version():
     return out.stdout.strip()
 
 
+def erfa_elapsed(erfa, y, mo, d, h, mi, sec, base):
+    """SI seconds from `base`, a TAI two-part Julian date, to the UTC time,
+    by ERFA."""
+    u1, u2 = erfa.dtf2d("UTC", y, mo, d, h, mi, float(sec))
+    t1, t2 = erfa.utctai(u1, u2)
+    return round(((t1 - base[0]) + (t2 - base[1])) * 86400)
+
+
+def leap_section(args):
+    sys.path.insert(0, str(ROOT / ".lake" / "oracle-packages"))
+    try:
+        import erfa
+    except ImportError:
+        sys.exit("needs pyerfa: pip install --target .lake/oracle-packages pyerfa==2.0.1.5")
+    import warnings
+    from importlib.metadata import version
+    # ERFA warns of a "dubious year" after its table's last entry; its
+    # answers still assume no later leap second, as the table here does.
+    warnings.simplefilter("ignore")
+    items = list(run_tests.cases(args.seed, args.count))
+    knowns = [bytes.fromhex(req.split(" ")[1]).decode("utf-8") for label, req, _, _ in items
+              if label == "known"]
+    sis = [int(req.split(" ")[1]) for label, req, _, _ in items if label == "fromsi"]
+    ours_k, problem = run_tests.run_tool("".join(f"known {run_tests.hexed(k)}\n" for k in knowns))
+    if problem or len(ours_k) != len(knowns):
+        sys.exit(f"the tool failed: {problem}")
+    ours_s, problem = run_tests.run_tool("".join(f"fromsi {n}\n" for n in sis))
+    if problem or len(ours_s) != len(sis):
+        sys.exit(f"the tool failed: {problem}")
+    b1, b2 = erfa.dtf2d("UTC", 1972, 1, 1, 0, 0, 0.0)
+    base = erfa.utctai(b1, b2)
+    k_checked, k_before, k_diff = 0, 0, []
+    for s, ours in zip(knowns, ours_k):
+        if not ours.startswith("OK"):
+            continue
+        _, si, tai = ours.split("\t")
+        if tai == "-":
+            k_before += 1
+            continue
+        f = run_tests.reference(s)
+        utc, _ = run_tests.utc_parts(f)
+        # utc_parts moves years `datetime` cannot hold by 400 years; move
+        # the UTC year back.
+        year = utc.year + f["year"] - run_tests.shifted(f["year"])[0]
+        theirs_tai = erfa.dat(year, utc.month, utc.day,
+                              (utc.hour * 3600 + utc.minute * 60 + f["second"]) / 86400)
+        theirs_si = erfa_elapsed(erfa, year, utc.month, utc.day, utc.hour, utc.minute,
+                                 f["second"], base)
+        k_checked += 1
+        if (int(si), int(tai)) != (theirs_si, round(theirs_tai)):
+            k_diff.append((s, ours, f"{theirs_si}\t{theirs_tai}"))
+    s_checked, s_leaps, s_diff = 0, 0, []
+    for n, ours in zip(sis, ours_s):
+        if ours == "NONE":
+            continue
+        m = re.fullmatch(r"([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})Z", ours)
+        y, mo, d, h, mi, sec = map(int, m.groups())
+        s_checked += 1
+        s_leaps += sec == 60
+        theirs = erfa_elapsed(erfa, y, mo, d, h, mi, sec, base)
+        if theirs != n:
+            s_diff.append((n, ours, theirs))
+    lines = [
+        "",
+        "## Leap seconds",
+        "",
+        f"- ERFA, through pyerfa {version('pyerfa')}, with its own leap second table",
+        f"- Timestamps known valid by the table, from 1972 on, given to ERFA: {k_checked}. "
+        f"Different SI seconds since 1972 or TAI - UTC: {len(k_diff)}. Before 1972, where "
+        f"TAI - UTC was not a whole number of seconds, not compared: {k_before}.",
+        f"- SI seconds turned back into timestamps, of which {s_leaps} leap seconds, and given "
+        f"to ERFA for their SI seconds: {s_checked}. Different: {len(s_diff)}.",
+        "",
+    ]
+    lines += [f"- `{s}`: this project `{o}`, ERFA `{t}`" for s, o, t in k_diff[:10]]
+    lines += [f"- `fromsi {n}`: this project `{o}`, ERFA's SI seconds `{t}`" for n, o, t in s_diff[:10]]
+    return lines
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=20261025)
@@ -161,6 +250,7 @@ def main():
     lines.append("")
     for s, theirs, ours in value_mismatch[:20]:
         lines.append(f"- Different instant: `{s!r}`: Go `{theirs}`, this project `{ours}`")
+    lines += leap_section(args)
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{len(strings)} strings; report in {REPORT}")
 

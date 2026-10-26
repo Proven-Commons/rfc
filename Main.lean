@@ -22,6 +22,15 @@
                       seconds since the epoch, or NONE when it falls
                       outside the years 0000 to 9999; N is decimal, with
                       an optional leading `-`
+    known HEX         prints  OK, then tab-separated: SI seconds since
+                      1972-01-01T00:00:00Z and TAI - UTC (`-` before
+                      1972, when TAI - UTC was not a whole number of
+                      seconds); NOLEAP when the timestamp is valid but
+                      its second 60 is not a leap second of the table;
+                      or REJECT
+    fromsi N          prints  the printed form of the UTC timestamp N SI
+                      seconds after 1972-01-01T00:00:00Z, with second 60
+                      at a leap second, or NONE outside 1972 to 9999
 
   A malformed request prints `error`: an unknown operation, hex digits
   that are not in pairs, bytes that are not UTF-8, or a number that is
@@ -30,7 +39,9 @@
 
   Every answer comes from the proved functions in `Rfc3339/`: `parse`,
   `Timestamp.print`, `Timestamp.unixSeconds`,
-  `Timestamp.compareInstant` and `fromUnixSeconds`. The hex decoding and the request handling
+  `Timestamp.compareInstant`, `fromUnixSeconds`,
+  `Timestamp.isValidKnown`, `Timestamp.siSeconds`,
+  `Timestamp.taiMinusUtc` and `fromSiSeconds`. The hex decoding and the request handling
   here are covered by the tests, not by a proof.
 -/
 
@@ -91,6 +102,20 @@ def request (line : String) : Option String :=
   | ["fromunix", n] => do
     let s ← decimal n
     pure <| match fromUnixSeconds s with
+      | some t => t.print
+      | none => "NONE"
+  | ["known", h] => do
+    let s ← fromHex h
+    pure <| match parse s with
+      | some t =>
+        if t.isValidKnown then
+          let tai := if 63072000 ≤ t.unixSeconds then toString t.taiMinusUtc else "-"
+          s!"OK\t{t.siSeconds}\t{tai}"
+        else "NOLEAP"
+      | none => "REJECT"
+  | ["fromsi", n] => do
+    let s ← decimal n
+    pure <| match fromSiSeconds s with
       | some t => t.print
       | none => "NONE"
   | _ => none
