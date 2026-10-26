@@ -39,6 +39,15 @@
                       of the first `u-ca` tag joined by `-`, or `-`;
                       or REJECT
 
+  The `ixdtf` answer `true` or `false` is the example application's
+  only. That application is there for the tests, which need a fixed
+  one. It knows three zones. Each has one fixed offset, whatever the
+  instant: Europe/Paris +02:00, Europe/London +01:00 and
+  America/Los_Angeles -08:00. These are their offsets at the RFC's
+  examples. So `2022-01-08T00:14:07+01:00[!Europe/Paris]` is judged
+  erroneous, although Paris is at +01:00 in January. A real application
+  passes its own `Processor` to `Ext.erroneous`.
+
   A malformed request prints `error`: an unknown operation, hex digits
   that are not in pairs, bytes that are not UTF-8, or a number that is
   not decimal. A request line

@@ -103,6 +103,8 @@ The command-line tool in `Main.lean` has two modes:
 
 Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant`, `fromUnixSeconds`, `Timestamp.isValidKnown`, `Timestamp.siSeconds`, `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`, `Ext.lookup` and `Ext.erroneous`. The `known` request prints `-` for TAI − UTC before 1972. The `ixdtf` request judges each string with the example application of `Spec.exampleProcessor`, and gives the values of its first `u-ca` tag.
 
+The `ixdtf` answer `true` or `false` is the example application's only. That application is there for the tests, which need a fixed one. It knows three zones. Each has one fixed offset, whatever the instant: Europe/Paris `+02:00`, Europe/London `+01:00` and America/Los_Angeles `-08:00`. These are their offsets at the RFC's examples. So the tool judges `2022-01-08T00:14:07+01:00[!Europe/Paris]` erroneous, although Paris is at `+01:00` in January. A real application passes its own `Processor` to `Ext.erroneous`.
+
 ## What must always hold
 
 Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`, for the leap second table in `Spec/Leap.lean`, and for RFC 9557 in `Spec/Ixdtf.lean`. They are written from the RFC and checked against its tables and against known day counts.
