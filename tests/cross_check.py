@@ -21,9 +21,10 @@ instants must match to the nanosecond.
 For the leap second table, the timestamps tests/run_tests.py sends as
 `known` requests, and the SI seconds it sends as `fromsi`, go to ERFA,
 a BSD-licensed C library derived from the IAU's SOFA, through pyerfa, which keeps its
-own leap second table: `dat` gives TAI - UTC, and `dtf2d` with `utctai`
-the TAI time, from which the SI seconds since 1972-01-01T00:00:00Z
-follow. It needs pyerfa:
+own leap second table: `dat` gives TAI - UTC, given the UTC date and
+ERFA's own fraction of the day, and `dtf2d` with `utctai` the TAI time,
+from which the SI seconds since 1972-01-01T00:00:00Z follow. It needs
+pyerfa:
 
     pip install --target .lake/oracle-packages pyerfa==2.0.1.5
 
@@ -31,12 +32,15 @@ For RFC 9557, the strings tests/run_tests.py sends as `ixdtf` requests go
 to `Temporal.Instant.from` in Node, with `--harmony-temporal`. That is
 V8's own Temporal behind a flag, an older one than the current proposal:
 it refuses some strings the proposal now reads. Each difference is put in
-the first category below that fits it.
+the first category below that fits it. The report records the flag,
+Node's version, and the versions of V8, ICU and the time zone data that
+Node gives in `process.versions`, so that the run can be repeated.
 
 The counts go to tests/CROSS-CHECK.md.
 """
 
 import argparse
+import json
 import platform
 import re
 import subprocess
@@ -152,8 +156,13 @@ def leap_section(args):
         # utc_parts moves years `datetime` cannot hold by 400 years; move
         # the UTC year back.
         year = utc.year + f["year"] - run_tests.shifted(f["year"])[0]
-        theirs_tai = erfa.dat(year, utc.month, utc.day,
-                              (utc.hour * 3600 + utc.minute * 60 + f["second"]) / 86400)
+        # ERFA's own fraction of the day. Its UTC day that ends in a leap
+        # second has 86401 seconds, so the leap second gets 86400/86401.
+        # That keeps it below 1, in the range 0 to 1 that eraDat documents.
+        # From 1972 on, eraDat reads only the date (its Note 4).
+        _, _, _, fd = erfa.jd2cal(*erfa.dtf2d("UTC", year, utc.month, utc.day, utc.hour,
+                                               utc.minute, float(f["second"])))
+        theirs_tai = erfa.dat(year, utc.month, utc.day, fd)
         theirs_si = erfa_elapsed(erfa, year, utc.month, utc.day, utc.hour, utc.minute,
                                  f["second"], base)
         k_checked += 1
@@ -174,7 +183,9 @@ def leap_section(args):
         "",
         "## Leap seconds",
         "",
-        f"- ERFA, through pyerfa {version('pyerfa')}, with its own leap second table",
+        f"- ERFA, through pyerfa {version('pyerfa')}, with its own leap second table. `dat` "
+        "gets the UTC date and ERFA's own fraction of the day, from `dtf2d` and `jd2cal`, "
+        "so a leap second gets 86400/86401, below 1.",
         f"- Timestamps known valid by the table, from 1972 on, given to ERFA: {k_checked}. "
         f"Different SI seconds since 1972 or TAI - UTC: {len(k_diff)}. Before 1972, where "
         f"TAI - UTC was not a whole number of seconds, not compared: {k_before}.",
@@ -229,11 +240,14 @@ def ixdtf_section(args):
     ours, problem = run_tests.run_tool("".join(f"ixdtf {run_tests.hexed(x)}\n" for x in strings))
     if problem or len(ours) != len(strings):
         sys.exit(f"the tool failed: {problem}")
-    out = subprocess.run(["node", "--harmony-temporal", str(GO_DIR / "ixdtf.js")],
+    flag = "--harmony-temporal"
+    out = subprocess.run(["node", flag, str(GO_DIR / "ixdtf.js")],
                          input="".join(run_tests.hexed(x) + "\n" for x in strings),
                          capture_output=True, text=True, check=True)
     theirs = out.stdout.split("\n")[: len(strings)]
     node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip()
+    versions = json.loads(subprocess.run(["node", "-p", "JSON.stringify(process.versions)"],
+                                         capture_output=True, text=True, check=True).stdout)
     tallies, examples = {}, {}
     for x, o, t in zip(strings, ours, theirs):
         ok, tok = o.startswith("OK"), t == "OK"
@@ -249,8 +263,10 @@ def ixdtf_section(args):
         "",
         "## RFC 9557",
         "",
-        f"- Node {node}, `Temporal.Instant.from`, with `--harmony-temporal`: V8's Temporal behind a "
+        f"- Node {node}, `Temporal.Instant.from`, with `{flag}`: V8's Temporal behind a "
         "flag, older than the current proposal",
+        f"- This Temporal is V8's own, here V8 {versions['v8']}. Node's `process.versions` also "
+        f"gives ICU {versions['icu']} and time zone data {versions['tz']}.",
         f"- Strings: {len(strings)}, of which this project reads "
         f"{sum(1 for o in ours if o.startswith('OK'))}. The same answer, read or refused: {same}.",
         "",
