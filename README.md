@@ -107,7 +107,7 @@ This project has no dependencies beyond Lean itself.
 - Go accepts a comma before the fraction.
 - `rfc3339-validator` accepts a timestamp followed by a line break.
 
-For RFC 9557, it compares `parseExt` with `Temporal.Instant.from` in Node's built-in Temporal, which is behind a flag and older than the current proposal. Temporal refuses what it does not act on: critical items, experimental and unknown keys, calendars it does not know, a repeated `u-ca`, and fractions finer than nanoseconds. Of the strings this project reads, it also refuses time zone names that are not in its time zone database, such as `a.b-c+d_e` and `Etc/G.T+5`. It accepts three kinds of string that this project refuses as RFC 9557 does: a `[` inside an item, a zone offset with no colon, and a stray `]`.
+For RFC 9557, it compares `parseExt` with `Temporal.Instant.from` in Node's built-in Temporal, which is behind a flag and older than the current proposal. This Temporal refuses every critical flag, even on an item it acts on. It also refuses experimental and unknown keys, a repeated `u-ca`, and fractions finer than nanoseconds. Its older grammar also refuses a calendar with a part outside 3 to 8 characters, and a time zone name with a digit or `+`, other than the `Etc/GMT` forms, or with a part over 14 characters. It reads calendars and zone names it does not know. It accepts a few strings this project refuses, as RFC 9557 does, such as a zone offset with no colon and a stray `]`.
 
 For leap seconds, it compares `siSeconds`, `taiMinusUtc` and `fromSiSeconds` with ERFA, a BSD-licensed C library derived from the IAU's SOFA, through pyerfa, which keeps its own leap second table. `tests/CROSS-CHECK.md` gives the counts.
 
