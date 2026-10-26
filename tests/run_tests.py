@@ -56,8 +56,9 @@ Inputs come from a recorded seed:
   critical tags (sections 3.2 to 3.4), written again in this script.
   `ixdtf` requests must give the printed form, whether the example
   application must treat the string as erroneous, and the first `u-ca`
-  tag. The inputs are every example of sections 1.2, 3.3, 3.4 and 4.2, the
-  edges of the grammar and rules written out below,
+  tag. The inputs are the examples of sections 1.2, 3.3, 3.4 and 4.2
+  that `Spec.ixdtf_vectors` reads, the edges of the grammar and rules
+  written out below,
   random timestamps with random suffixes (time zones by name and by
   offset, tags with known, unknown and experimental keys, each item
   elective or critical, keys repeated), and those suffixes mutated: a
