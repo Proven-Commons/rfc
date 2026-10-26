@@ -13,15 +13,19 @@ spec_authors = ["claude"]
 entry_points = ["Main.lean"]
 
 [spec]
-# Rfc3339/Types.lean holds the types every statement is about, so it is
-# part of the specification.
-files = ["SPEC.md", "Spec.lean", "Spec/Defs.lean", "Spec/Leap.lean", "Rfc3339/Types.lean"]
+# Rfc3339/Types.lean and Rfc3339/IxdtfTypes.lean hold the types the
+# statements are about, so they are part of the specification.
+files = [
+  "SPEC.md", "Spec.lean", "Spec/Defs.lean", "Spec/Leap.lean", "Spec/Ixdtf.lean",
+  "Rfc3339/Types.lean", "Rfc3339/IxdtfTypes.lean",
+]
 # The code under proof: the functions the statements are about.
 code = [
   "Rfc3339.parse", "Rfc3339.Timestamp.print", "Rfc3339.Timestamp.isValid",
   "Rfc3339.Timestamp.unixSeconds", "Rfc3339.Timestamp.compareInstant",
   "Rfc3339.fromUnixSeconds", "Rfc3339.Timestamp.isValidKnown", "Rfc3339.Timestamp.siSeconds",
-  "Rfc3339.Timestamp.taiMinusUtc", "Rfc3339.fromSiSeconds",
+  "Rfc3339.Timestamp.taiMinusUtc", "Rfc3339.fromSiSeconds", "Rfc3339.parseExt",
+  "Rfc3339.Ext.print", "Rfc3339.Ext.lookup", "Rfc3339.Ext.erroneous",
 ]
 
 # One entry per approval, added in a pull request the reviewer approves.
