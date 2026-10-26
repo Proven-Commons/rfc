@@ -186,16 +186,17 @@ theorem Spec.fromUnixSeconds_vectors :
 theorem Spec.isValidKnown_iff (t : Timestamp) :
     t.isValidKnown = true ↔ Spec.ValidKnown t := sorry
 
-/-- `siSeconds` counts the SI seconds from 1972-01-01T00:00:00Z to the
-    timestamp, each leap second of the table included, leaving out the
-    fraction. -/
+/-- `siSeconds` is the Unix seconds from 1972-01-01T00:00:00Z to the
+    timestamp, leaving out the fraction, and one more for each leap
+    second of the table before it. From 1972 on, those are the SI
+    seconds between them; before 1972 there are no leap seconds, and the
+    number is Unix seconds, 86400 to a day, not SI seconds. -/
 theorem Spec.siSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
     t.siSeconds = Spec.siSeconds t := sorry
 
 /-- On whole seconds, valid by the table, `siSeconds` orders timestamps
     exactly as the instants they name. So no two instants share a
-    number: a leap second, the second before it and the second after
-    it get three numbers in a row. -/
+    number, a leap second and the second after it included. -/
 theorem Spec.siSeconds_order (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
     (fa : a.fraction = []) (fb : b.fraction = []) :
     compare a.siSeconds b.siSeconds = a.compareInstant b := sorry
@@ -214,6 +215,13 @@ theorem Spec.fromSiSeconds_iff (n : Int) (t : Timestamp) :
 theorem Spec.fromSiSeconds_isSome (n : Int) :
     (fromSiSeconds n).isSome ↔
       0 ≤ n ∧ n ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
+
+/-- `taiMinusUtc` is 10, and one more for each leap second of the table
+    before the timestamp. So during a leap second it is still the value
+    from before it. (Before 1972, UTC was not a whole number of seconds
+    from TAI, and the 10 there means nothing.) -/
+theorem Spec.taiMinusUtc_leapsBefore (t : Timestamp) (h : Spec.Valid t) :
+    t.taiMinusUtc = 10 + Spec.leapsBefore t := sorry
 
 /-- TAI − UTC at each second from 1972 on, other than a leap second, is
     the value the table's second column gives for it. The code never
@@ -240,9 +248,16 @@ theorem Spec.leap_table_vectors :
     Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 15724800 ∧
     Timestamp.siSeconds ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 15724801 ∧
     Timestamp.siSeconds ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 1420156827 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 1420156825 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 1420156826 ∧
     Timestamp.taiMinusUtc ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 59, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 11 ∧
+    Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 36 ∧
     Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 36 ∧
     Timestamp.taiMinusUtc ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 37 ∧
+    fromSiSeconds 15724800 = some ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ ∧
     fromSiSeconds 1420156826 = some ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ ∧
     fromSiSeconds 1420156827 = some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ ∧
     fromUnixSeconds (Timestamp.unixSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩) =

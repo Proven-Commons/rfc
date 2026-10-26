@@ -6,16 +6,16 @@ Written by `tests/run_tests.py`. Rerun it to check these numbers.
 - Lean: Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
 - Seed: 20261025
 - Inputs: 300000
-- Mutated: 67675 of the inputs are mutated timestamps
-- By kind: compare 29452, error 39, fromsi 9355, fromunix 44573, grid 16998, ixdtf 7038, known 27497, mutated 67675, near miss 29283, valid 68090
-- Strings parsed: 182046, of which 83570 accepted (4568 with a leap second) and 98476 rejected
-- Accepted strings also read by `datetime.fromisoformat`, with the same fields, offset and seconds: 77491
-- Pairs ordered: 29452 (9859 before, 8207 same instant, 9921 after, 1465 with a string rejected)
-- Unix seconds turned back into timestamps: 44573, of which 657 outside years 0000 to 9999
-- Leap second table: /usr/share/zoneinfo/leap-seconds.list, 28 lines, 27 leap seconds, expires 2027-06-28
-- Timestamps checked against the table (`known`): 27497, of which 236 leap seconds of the table, 5895 with a second 60 it does not list, and 0 rejected
-- SI seconds turned back into timestamps (`fromsi`): 9355, of which 27 leap seconds and 690 outside 1972 to 9999
-- RFC 9557 strings (`ixdtf`): 7038, of which 5216 read, 3089 of them erroneous for the example application, and 1822 refused
+- Mutated: 67667 of the inputs are mutated timestamps
+- By kind: compare 29526, error 39, fromsi 9358, fromunix 44567, grid 16998, ixdtf 7158, known 27462, mutated 67667, near miss 29209, valid 68016
+- Strings parsed: 181890, of which 83523 accepted (4589 with a leap second) and 98367 rejected
+- Accepted strings also read by `datetime.fromisoformat`, with the same fields, offset and seconds: 77428
+- Pairs ordered: 29526 (9907 before, 8293 same instant, 9860 after, 1466 with a string rejected)
+- Unix seconds turned back into timestamps: 44567, of which 648 outside years 0000 to 9999
+- Leap second table: /usr/share/zoneinfo/leap-seconds.list, 28 lines, 27 leap seconds, expires 2027-06-28, last updated at NTP time 3992312697, hash line `a9bad145 84c31c70 758402aa b37bfd54 5923836a`
+- Timestamps checked against the table (`known`): 27462, of which 224 leap seconds of the table, 5703 with a second 60 it does not list, and 1224 rejected
+- SI seconds turned back into timestamps (`fromsi`): 9358, of which 27 leap seconds and 702 outside 1972 to 9999
+- RFC 9557 strings (`ixdtf`): 7158, of which 5299 read, 3126 of them erroneous for the example application, and 1859 refused
 - Malformed requests answered `error`: 39 of 39
 - Requests ending in CR LF: every seventh, 42857
 - Strings also given to `rfc3339 check` as arguments, in batches of 500: 20000, and once with no arguments

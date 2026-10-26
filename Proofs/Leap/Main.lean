@@ -35,6 +35,11 @@ theorem Spec.fromSiSeconds_isSome (n : Int) :
       0 ≤ n ∧ n ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ :=
   Rfc3339.Proofs.Leap.fromSiSeconds_isSome n
 
+theorem Spec.taiMinusUtc_leapsBefore (t : Timestamp) (h : Spec.Valid t) :
+    t.taiMinusUtc = 10 + Spec.leapsBefore t := by
+  unfold Timestamp.taiMinusUtc
+  rw [Rfc3339.Proofs.Leap.leapsBefore_eq t h]
+
 theorem Spec.taiMinusUtc_eq (t : Timestamp) (h : Spec.Valid t) (h60 : t.second ≠ 60)
     (h72 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ ≤ Spec.unixSeconds t) :
     t.taiMinusUtc = Spec.taiMinusUtcAt (Spec.ntpOfUnix (Spec.unixSeconds t)) :=
@@ -54,9 +59,16 @@ theorem Spec.leap_table_vectors :
     Timestamp.siSeconds ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 15724800 ∧
     Timestamp.siSeconds ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 15724801 ∧
     Timestamp.siSeconds ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 1420156827 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 1420156825 ∧
+    Timestamp.siSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 1420156826 ∧
     Timestamp.taiMinusUtc ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 59, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ = 10 ∧
+    Timestamp.taiMinusUtc ⟨1972, 7, 1, 0, 0, 0, [], .z⟩ = 11 ∧
+    Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ = 36 ∧
     Timestamp.taiMinusUtc ⟨2016, 12, 31, 23, 59, 59, [], .z⟩ = 36 ∧
     Timestamp.taiMinusUtc ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ = 37 ∧
+    fromSiSeconds 15724800 = some ⟨1972, 6, 30, 23, 59, 60, [], .z⟩ ∧
     fromSiSeconds 1420156826 = some ⟨2016, 12, 31, 23, 59, 60, [], .z⟩ ∧
     fromSiSeconds 1420156827 = some ⟨2017, 1, 1, 0, 0, 0, [], .z⟩ ∧
     fromUnixSeconds (Timestamp.unixSeconds ⟨2016, 12, 31, 23, 59, 60, [], .z⟩) =

@@ -47,7 +47,8 @@ Inputs come from a recorded seed:
   or NOLEAP for a second 60 it does not list. The inputs are 23:59:58,
   23:59:59, 23:59:60 and the next 00:00:00 at every month end from 1970
   to 2030, in UTC and spelled under seven offsets, and random valid
-  timestamps. `fromsi` requests take every leap second's SI seconds and
+  timestamps, near misses and mutated strings, which `known` must refuse
+  wherever `parse` does. `fromsi` requests take every leap second's SI seconds and
   the two seconds either side, the ends of the range and one past each,
   random numbers, and the SI seconds of random timestamps;
 - for RFC 9557, the Internet Extended Date/Time Format, a fourth
@@ -140,9 +141,15 @@ EPOCH_1972 = 63072000
 
 
 def leap_table():
+    if not LEAP_FILE.exists():
+        sys.exit(f"needs tzdata's {LEAP_FILE}, the leap second table the tests check against")
     rows, expires = [], None
     for line in LEAP_FILE.read_text().splitlines():
-        if line.startswith("#@"):
+        if line.startswith("#$"):
+            LEAP_FILE_INFO["updated"] = int(line.split()[1])
+        elif line.startswith("#h"):
+            LEAP_FILE_INFO["hash"] = " ".join(line.split()[1:])
+        elif line.startswith("#@"):
             expires = int(line.split()[1])
         elif line.strip() and not line.startswith("#"):
             ntp, off = line.split()[:2]
@@ -150,6 +157,7 @@ def leap_table():
     return rows, expires
 
 
+LEAP_FILE_INFO = {}
 LEAP_TABLE, LEAP_EXPIRES = leap_table()
 # The Unix seconds of the midnight after each leap second, which is also
 # what Unix seconds give the leap second itself.
@@ -778,7 +786,16 @@ def cases(seed, count):
             made += 1
             continue
         if r < 0.06:
-            s = random_valid(rng) if rng.random() < 0.8 else leap_pair(rng)[0]
+            r = rng.random()
+            if r < 0.65:
+                s = random_valid(rng)
+            elif r < 0.8:
+                s = leap_pair(rng)[0]
+            elif r < 0.9:
+                s = near_miss(rng)
+            else:
+                base = random_valid(rng)
+                s = mutate(rng, base)
             yield ("known", f"known {hexed(s)}", known(s), False)
             made += 1
             continue
@@ -1055,7 +1072,9 @@ def main():
         f"- Unix seconds turned back into timestamps: {len(from_unix_wants)}, of which "
         f"{from_unix_wants.count('NONE')} outside years 0000 to 9999",
         f"- Leap second table: {LEAP_FILE}, {len(LEAP_TABLE)} lines, {len(LEAP_MIDNIGHTS)} leap "
-        f"seconds, expires {expires:%Y-%m-%d}" if expires else f"- Leap second table: {LEAP_FILE}",
+        f"seconds, expires {expires:%Y-%m-%d}, last updated at NTP time "
+        f"{LEAP_FILE_INFO.get('updated')}, hash line `{LEAP_FILE_INFO.get('hash')}`"
+        if expires else f"- Leap second table: {LEAP_FILE}",
         f"- Timestamps checked against the table (`known`): {len(knowns)}, of which "
         f"{known_leaps} leap seconds of the table, {knowns.count('NOLEAP')} with a second 60 it "
         f"does not list, and {knowns.count('REJECT')} rejected",

@@ -20,7 +20,7 @@ instants must match to the nanosecond.
 
 For the leap second table, the timestamps tests/run_tests.py sends as
 `known` requests, and the SI seconds it sends as `fromsi`, go to ERFA,
-the C version of the IAU's SOFA library, through pyerfa, which keeps its
+a BSD-licensed C library derived from the IAU's SOFA, through pyerfa, which keeps its
 own leap second table: `dat` gives TAI - UTC, and `dtf2d` with `utctai`
 the TAI time, from which the SI seconds since 1972-01-01T00:00:00Z
 follow. It needs pyerfa:

@@ -1,6 +1,6 @@
 # rfc: RFC 3339 timestamps, proved
 
-This library reads, checks and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`, in Lean. Machine-checked proofs show that it accepts exactly the strings that the RFC's grammar and calendar rules allow, including the day ranges and leap years of the calendar. `isValid` has one relaxation: it accepts a leap second at the end of any month. `isValidKnown` is exact: it checks second 60 against the table of the 27 leap seconds there have been, as tzdata publishes it. The proofs also cover the round trip from text to value and back, the count of seconds since the Unix epoch, and the order of two timestamps by the instant they name. A count of SI seconds since 1972 gives each leap second its own number, so a round trip through it keeps a leap second, as one through Unix seconds cannot. TAI − UTC is also given, and proved to agree with the table. The library is tested against Python's date and time code; `tests/TEST-RESULTS.md` has the record.
+This library reads, checks and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`, in Lean. Machine-checked proofs show that it accepts exactly the strings that the RFC's grammar and calendar rules allow, including the day ranges and leap years of the calendar. `isValid` has one relaxation: it accepts a leap second at the end of any month. `isValidKnown` is exact: it checks second 60 against the table of the 27 leap seconds there have been, as tzdata publishes it. The proofs also cover the round trip from text to value and back, the count of seconds since the Unix epoch, and the order of two timestamps by the instant they name. A count of SI seconds since 1972 gives each leap second its own number, so a round trip through it keeps a leap second, as one through Unix seconds cannot. TAI − UTC is also given, as 10 plus the leap seconds before the timestamp, and proved to agree with the table's own TAI − UTC column at every second from 1972 on but a leap second. The library is tested against Python's date and time code; `tests/TEST-RESULTS.md` has the record.
 
 It is a project of [Proven Commons](https://github.com/Proven-Commons/mission), built to the verified bar published there.
 
@@ -34,7 +34,7 @@ The statements are in `Spec.lean`. The definitions they use, written from the RF
 
 | Claim | Theorem |
 |-------|---------|
-| `isValid` decides the rules of RFC 3339, sections 5.6 and 5.7. Every field is in its range. The day exists in its month, with the leap years of Appendix C. Second 60 falls only at 23:59 UTC on the last day of a month. Section 5.7 allows it only in months that had a leap second; with no table of them, any month is accepted. | `Spec.isValid_iff` |
+| `isValid` decides the rules of RFC 3339, sections 5.6 and 5.7. Every field is in its range. The day exists in its month, with the leap years of Appendix C. Second 60 falls only at 23:59 UTC on the last day of a month. Section 5.7 allows it only in months that had a leap second; `isValid` uses no table of them, so any month is accepted. | `Spec.isValid_iff` |
 | A valid timestamp prints as the grammar of section 5.6 writes it, with `T` and `Z` in upper case. | `Spec.print_eq` |
 | `parse` returns a timestamp exactly when the timestamp is valid and the string is how it prints, with `T` and `Z` in either case. So `parse` accepts nothing outside the grammar and those rules, rejects nothing inside them, and returns the fields as written. | `Spec.parse_iff` |
 | What `parse` returns is valid; for example, 30 February never passes. | `Spec.parse_valid` |
@@ -48,10 +48,11 @@ The statements are in `Spec.lean`. The definitions they use, written from the RF
 | `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z, and `none` outside them. | `Spec.fromUnixSeconds_isSome` |
 | `fromUnixSeconds` gives the epoch, the section 5.8 example, 2000-02-29, 2038-01-19T03:14:07Z for the last second of a signed 32-bit count, the second before the epoch, and both ends of the range, and gives `none` one second past each end. | `Spec.fromUnixSeconds_vectors` |
 | The calendar, leap second, and syntax cases: 29 February in 1900, 2000 and 2001; second 60 at and away from a month's end; lower case `t` and `z`; a space for `T`; a comma; an offset of `+24:00`; trailing text. | `Spec.calendar_vectors`, `Spec.leap_second_vectors`, `Spec.syntax_vectors` |
-| `isValidKnown` decides section 5.7 with the table of leap seconds. It allows second 60 only at one of the table's leap seconds, at the same instant whatever the offset. The table is tzdata's `leap-seconds.list`, copied into the spec line for line. The code keeps its own list of months, and the proof shows the two agree. | `Spec.isValidKnown_iff` |
-| `siSeconds` counts the SI seconds from 1972-01-01T00:00:00Z: Unix seconds, and one more for each leap second of the table before the timestamp. | `Spec.siSeconds_eq` |
-| On whole seconds valid by the table, `siSeconds` orders timestamps exactly as `compareInstant` does. So no two instants share a number: a leap second, the second before it and the second after it get three numbers in a row. | `Spec.siSeconds_order` |
+| `isValidKnown` decides section 5.7 with the table of leap seconds. It allows second 60 only at one of the table's leap seconds, at the same instant whatever the offset. The table is the one in `Spec/Leap.lean`. The code keeps its own list of months, and the proof shows the two agree. | `Spec.isValidKnown_iff` |
+| `siSeconds` is the Unix seconds since 1972-01-01T00:00:00Z, and one more for each leap second of the table before the timestamp. From 1972 on, those are the SI seconds; so a leap second, the second before it and the second after it get three numbers in a row. Before 1972 the number is Unix seconds, 86400 to a day. | `Spec.siSeconds_eq` |
+| On whole seconds valid by the table, `siSeconds` orders timestamps exactly as `compareInstant` does. So no two instants share a number, a leap second and the second after it included. | `Spec.siSeconds_order` |
 | `fromSiSeconds` turns SI seconds back into the one UTC timestamp from 1972 on, valid by the table, that has them, a leap second included. It gives a timestamp for every second from 1972-01-01T00:00:00Z to 9999-12-31T23:59:59Z and `none` outside. | `Spec.fromSiSeconds_iff`, `Spec.fromSiSeconds_isSome` |
+| `taiMinusUtc` is 10, and one more for each leap second of the table before the timestamp, so during a leap second it is still the value from before it. | `Spec.taiMinusUtc_leapsBefore` |
 | TAI − UTC at each second from 1972 on, other than a leap second, is the value in the table's second column, 10 to 37. The code never reads that column; it counts leap seconds. | `Spec.taiMinusUtc_eq` |
 | Section 5.8's leap seconds, the table's first and last, one seen from another offset, and second 60 in months that had none. SI seconds and TAI − UTC around the first and the last leap second. And the round trip that Unix seconds lose and SI seconds keep. | `Spec.leap_table_vectors` |
 
@@ -59,10 +60,11 @@ The command-line tool in `Main.lean` calls these functions directly.
 
 ## What is not proved
 
-- Reading requests and printing answers in `Main.lean`: the hex decoding and UTF-8 check in `serve` mode, the arguments, output and exit codes of `check` mode, and the decimal printing of numbers and reading of the numbers `fromunix` takes. The differential tests cover them, with malformed requests and CR LF line endings.
+- Reading requests and printing answers in `Main.lean`: the hex decoding and UTF-8 check in `serve` mode, the arguments, output and exit codes of `check` mode, the decimal printing of numbers and reading of the numbers `fromunix` and `fromsi` take, and the layout of the `known` answer, with `-` for TAI − UTC before 1972. The differential tests cover them, with malformed requests and CR LF line endings.
 - Whether a leap second was announced, in `isValid` and `parse`. They accept second 60 at 23:59 UTC at the end of any month, where section 5.7 allows it only at the end of months in which a leap second occurs; `isValidKnown` checks that against the table. Second 59 is always accepted, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened.
 - The table after its expiry date, 28 June 2027. `isValidKnown` refuses second 60 at any month end the table does not list, and `siSeconds` and `taiMinusUtc` count no leap second after 2016. If one is ever announced, the table in the spec and the code's list must change together, and the spec approved again. The table is what tzdata publishes from IERS Bulletin C; that it matches the IERS record is trusted, not proved.
-- SI seconds and TAI − UTC before 1972. UTC then ran on seconds of varying length, with TAI − UTC not a whole number of seconds. Before 1972, `siSeconds` counts 86400 seconds a day, as Unix seconds do, and `taiMinusUtc` gives 10; no statement covers them there, and the tool's `known` request prints `-` for TAI − UTC.
+- SI seconds and TAI − UTC before 1972. UTC then ran on seconds of varying length, with TAI − UTC not a whole number of seconds. Before 1972, `Spec.siSeconds_eq` makes `siSeconds` Unix seconds less 63072000, 86400 to a day, which are not SI seconds there, and `taiMinusUtc` gives 10, which means nothing there; the tool's `known` request prints `-` for TAI − UTC.
+- The table itself. `Spec/Leap.lean` copies tzdata's `leap-seconds.list` (tzdata 2026e, updated through IERS Bulletin C, expiring 28 June 2027) line for line. That copy is part of the specification: the reviewer checks it against the file, and the differential tests check the code against the copy of the file on the test machine, but no proof does.
 - Unix seconds at a leap second. They count second 60 as the first second of the next minute, as POSIX time does, so a leap second and the second after it give the same number. `compareInstant` does not use them, and puts the leap second first. `fromUnixSeconds` turns that number into the second after the leap second, so a round trip through Unix seconds loses a leap second, and `9999-12-31T23:59:60Z` gives `none`.
 - Forms outside RFC 3339 are not supported, by design:
   - a space in place of `T`, which section 5.6 lets applications choose;
@@ -94,11 +96,11 @@ This project has no dependencies beyond Lean itself.
 - Go accepts a comma before the fraction.
 - `rfc3339-validator` accepts a timestamp followed by a line break.
 
-For leap seconds, it compares `siSeconds`, `taiMinusUtc` and `fromSiSeconds` with ERFA, the C version of the IAU's SOFA library, through pyerfa, which keeps its own leap second table. `tests/CROSS-CHECK.md` gives the counts.
+For leap seconds, it compares `siSeconds`, `taiMinusUtc` and `fromSiSeconds` with ERFA, a BSD-licensed C library derived from the IAU's SOFA, through pyerfa, which keeps its own leap second table. `tests/CROSS-CHECK.md` gives the counts.
 
 ## Re-check it
 
-Needs Linux, [elan](https://github.com/leanprover/elan), bubblewrap (`apt install bubblewrap`), and Python 3.11 or later.
+Needs Linux, [elan](https://github.com/leanprover/elan), bubblewrap (`apt install bubblewrap`), Python 3.11 or later, and tzdata, for `/usr/share/zoneinfo/leap-seconds.list`.
 
 ```
 lake build
