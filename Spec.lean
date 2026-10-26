@@ -302,7 +302,8 @@ theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
     the application of `Spec.exampleProcessor`: each one is read, and is
     erroneous exactly where the RFC says it must be treated so. Also
     critical time zones that agree with the offset, a critical `-00:00`
-    zone that does not, and strings the grammar refuses. -/
+    zone that does not, two strings judged by the application of
+    `Spec.secondProcessor`, and strings the grammar refuses. -/
 theorem Spec.ixdtf_vectors :
     -- Section 4.2, Figures 4 to 7
     parseExt "1996-12-19T16:39:57-08:00" =
@@ -373,6 +374,14 @@ theorem Spec.ixdtf_vectors :
       some true) ∧
     -- `Z` in brackets is a zone name, not an offset
     ((parseExt "2022-07-08T00:14:07Z[Z]").map (·.zone) = some (some (false, .name ["Z".toList]))) ∧
+    -- A second application, with other tags: a critical calendar the
+    -- first does not process, with an elective tag of the experiment it
+    -- takes part in; then a critical tag of that experiment whose value
+    -- it cannot process
+    ((parseExt "2022-07-08T00:14:07Z[!u-ca=coptic][_x=b]").map
+      (·.erroneous Spec.secondProcessor) = some false) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!_x=b]").map (·.erroneous Spec.secondProcessor) =
+      some true) ∧
     -- Refused by the grammar: an empty item, `.` and `..`, an upper case
     -- key, an empty value, a time zone after a tag, an offset out of range
     parseExt "2022-07-08T00:14:07Z[]" = none ∧

@@ -144,9 +144,17 @@ keys MUST NOT be used for interchange and MUST be rejected by
 implementations not specifically configured to take part in such an
 experiment."
 
-Below, what the application can act on is a `Processor`: which tags it
-processes, which taking part in an experiment means for a key that
-starts with `_`, and the offset a named time zone has at an instant.
+Below, what the application can act on is a `Processor`. Its
+`processes` sees the whole tag: whether it is critical, its key and its
+values. For a critical tag, it says whether the application can process
+the tag (section 3.3). For a tag whose key starts with `_`, it says
+whether the application takes part in that experiment, with this tag
+(section 3.2). For a critical tag with such a key, it says both at once.
+`Spec.MustReject` reads it for no other tag. Since it sees the values,
+an application can take part in an experiment for some values only, or
+take part in it, yet process a critical tag of it only for some values,
+as `Spec.secondProcessor` does. Its `zoneOffset` gives the offset a named
+time zone has at an instant.
 -/
 
 /-- The timestamp's offset asserts a local offset: it is not `Z` or
@@ -165,8 +173,9 @@ def Spec.ZoneConsistent (p : Processor) (t : Timestamp) : Zone → Prop
 /-- The application must treat the string as erroneous: by section 3.4,
     a critical time zone that is not consistent with the timestamp; by
     section 3.3, a critical tag it cannot process, or a critical tag
-    whose key a tag uses with other values; by section 3.2, a key for an
-    experiment it does not take part in. -/
+    whose key a tag uses with other values; by section 3.2, a tag whose
+    key starts with `_`, for an experiment it does not take part in with
+    that tag. -/
 def Spec.MustReject (p : Processor) (e : Ext) : Prop :=
   (∃ z, e.zone = some (true, z) ∧ ¬ Spec.ZoneConsistent p e.stamp z) ∨
   (∃ t ∈ e.tags, t.critical = true ∧ p.processes t = false) ∨
@@ -188,3 +197,12 @@ def Spec.exampleProcessor : Processor where
     else if parts = ["Europe".toList, "London".toList] then some 60
     else if parts = ["America".toList, "Los_Angeles".toList] then some (-480)
     else none
+
+/-- A second application, with other tags: it processes `u-ca` with any
+    values. It takes part in the experiment of the key `_x`, but of the
+    critical `_x` tags it can process only those with the one value `a`.
+    It knows no time zone. -/
+def Spec.secondProcessor : Processor where
+  processes t := t.key = "u-ca".toList ∨
+    (t.key = "_x".toList ∧ (t.critical = true → t.values = ["a".toList]))
+  zoneOffset _ _ := none

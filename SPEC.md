@@ -83,10 +83,16 @@ It reads exactly the strings of the grammar, with the timestamp as `parse` reads
 
 `Ext.lookup` gives the first tag with a key. Section 3.3 has an application that does not handle a repeated elective key choose the first.
 
-`Ext.erroneous` says whether an application must treat the string as erroneous. That depends on the application, so it takes a `Processor`: which tags the application can process, and the offset a named time zone has at an instant, or `none` for a zone it does not know. The string is erroneous when any of these holds:
+`Ext.erroneous` says whether an application must treat the string as erroneous. That depends on the application, so it takes a `Processor`, which has two parts:
+- `processes` gives `true` or `false` for a tag. It sees the whole tag: whether it is critical, its key and its values. For a critical tag, it says whether the application can process the tag. For a tag whose key starts with `_`, it says whether the application takes part in that experiment, with this tag. Section 3.2 has such a key rejected unless the application is "specifically configured to take part in such an experiment". For a critical tag with such a key, it says both at once. The rules read it for no other tag.
+- `zoneOffset` gives the offset a named time zone has at an instant, or `none` for a zone the application does not know.
+
+Since `processes` sees the values, an application can take part in an experiment for some values only. It can also take part in an experiment, yet process a critical tag of that experiment only for some values. `Spec.secondProcessor` does that. It processes `u-ca` with any values. It takes part in the experiment `_x`, but of the critical `_x` tags it processes only those with the one value `a`. For it, `Spec.ixdtf_vectors` judges `2022-07-08T00:14:07Z[!u-ca=coptic][_x=b]` not erroneous and `2022-07-08T00:14:07Z[!_x=b]` erroneous.
+
+The string is erroneous when any of these holds:
 - **Section 3.4:** the time zone is critical and does not agree with the timestamp. A named zone the application does not know never agrees, as section 4.1 asks. Otherwise the zone's offset at that instant must be the timestamp's offset. `Z` and `-00:00` assert no local offset, so a numeric offset or a zone the application knows agrees with them, as Figure 2 shows for `2022-07-08T00:14:07Z[!Europe/London]`.
 - **Section 3.3:** a critical tag the application cannot process, or a critical tag whose key another tag uses with other values.
-- **Section 3.2:** a key that starts with `_`, for an experiment, that the application does not process.
+- **Section 3.2:** a tag whose key starts with `_`, for an experiment the application does not take part in with that tag.
 
 Everything else is elective: an application may ignore a tag it does not know, or a time zone that disagrees with the offset when the zone is not critical. This library holds no time zone database, and does not judge what a tag such as a calendar means. Those are the application's, through its `Processor`.
 
@@ -141,7 +147,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Spec.parseExt_plain` |
 | `lookup` gives the first tag with the key. | `Spec.lookup_iff` |
 | `erroneous` decides `Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Spec.erroneous_iff` |
-| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
+| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; two strings are judged by a second application, `Spec.secondProcessor`; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
 
 Together, these fix every output for valid input.
 

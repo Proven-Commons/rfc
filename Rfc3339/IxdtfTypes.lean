@@ -32,10 +32,14 @@ structure Ext where
   tags : List Tag
   deriving DecidableEq, Repr
 
-/-- What an application can act on, for the rules of sections 3.3 and
-    3.4: the tags it can process, and for a time zone name, the offset in
-    minutes the zone has at a given instant, or `none` when it does not
-    know the zone. -/
+/-- What an application can act on, for the rules of sections 3.2 to
+    3.4. `processes` sees the whole tag: whether it is critical, its key
+    and its values. For a critical tag it says whether the application
+    can process the tag. For a tag whose key starts with `_` it says
+    whether the application takes part in that experiment, with this
+    tag. The rules read it for no other tag. `zoneOffset` gives, for a
+    time zone name, the offset in minutes the zone has at a given
+    instant, or `none` when the application does not know the zone. -/
 structure Processor where
   processes : Tag → Bool
   zoneOffset : List (List Char) → Timestamp → Option Int
