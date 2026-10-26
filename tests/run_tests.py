@@ -737,10 +737,30 @@ MALFORMED = [
     ("fromsi +1", "a plus sign"),
     ("fromsi 1.5", "a fraction"),
     ("fromsi 1 2", "two numbers"),
+    ("fromsi 1_000", "an underscore"),
+    ("fromsi -", "a sign alone"),
+    ("fromsi --1", "two signs"),
+    ("fromsi 0x10", "hex"),
+    ("fromsi \u0663", "a digit that is not ASCII"),
+    ("known 3G", "not a hex digit"),
+    ("known 3A", "hex digits are lower case"),
+    ("known c0af", "an overlong encoding, not UTF-8"),
+    ("known eda080", "a surrogate, not UTF-8"),
     ("ixdtf", "no argument"),
     ("ixdtf 3", "an odd number of hex digits"),
     ("ixdtf 30 30", "two arguments"),
     ("ixdtf ff", "not UTF-8"),
+]
+
+# Strings `known` must answer REJECT, not NOLEAP: second 60 away from a
+# UTC month end, second 61, an offset out of range, and no timestamp.
+KNOWN_REJECT = [
+    "1990-12-30T23:59:60Z",
+    "1990-12-31T23:59:61Z",
+    "1990-12-31T23:59:60+24:00",
+    "2015-02-30T00:00:00Z",
+    "",
+    "garbage",
 ]
 
 # A last line with no LF must still be answered.
@@ -758,7 +778,13 @@ def hexed(s):
 def cases(seed, count):
     """(label, request, expected answer, mutated) for each input."""
     rng = random.Random(seed)
-    fixed = []
+    # The short lists first, so that a run with a small count has them.
+    fixed = [("error", req, "error", False) for req, _ in MALFORMED]
+    for s in KNOWN_REJECT:
+        assert known(s) == "REJECT", s
+        fixed.append(("known", f"known {hexed(s)}", "REJECT", False))
+    for s in IX_EXAMPLES + IX_EDGES:
+        fixed.append(("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False))
     for s in itertools.chain(day_grid(), leap_grid(), edge_grid()):
         fixed.append(("grid", f"parse {hexed(s)}", answer(reference(s)), False))
     edges = list(edge_grid())
@@ -770,10 +796,6 @@ def cases(seed, count):
         fixed.append(("known", f"known {hexed(s)}", known(s), False))
     for n in si_grid():
         fixed.append(("fromsi", f"fromsi {n}", from_si(n), False))
-    for s in IX_EXAMPLES + IX_EDGES:
-        fixed.append(("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False))
-    for req, _ in MALFORMED:
-        fixed.append(("error", req, "error", False))
     made = 0
     for item in fixed[:count]:
         yield item
