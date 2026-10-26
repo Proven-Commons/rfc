@@ -24,6 +24,7 @@
     "Spec.siSeconds_order",
     "Spec.fromSiSeconds_iff",
     "Spec.fromSiSeconds_isSome",
+    "Spec.taiMinusUtc_leapsBefore",
     "Spec.taiMinusUtc_eq",
     "Spec.leap_table_vectors"
   ],

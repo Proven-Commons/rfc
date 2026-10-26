@@ -18,7 +18,7 @@ time-offset = "Z" / ("+" / "-") time-hour ":" time-minute
 - Every field has exactly the number of digits the grammar gives. A digit is an ASCII digit, `0` to `9`. The parser rejects digits from other scripts, such as `٣` and `０`.
 - The year runs from 0000 to 9999 and the month from 01 to 12. The day runs from 01 to the length of its month, as in the table of section 5.7. February has 29 days in a leap year and 28 otherwise. A leap year is one divisible by 4, unless it is divisible by 100 and not by 400 (Appendix C).
 - The hour runs from 00 to 23 and the minute from 00 to 59. The second runs from 00 to 59. It may be 60 only for a leap second, which section 5.7 places at the end of a month in UTC. With the offset applied, the time must be 23:59 UTC on the last day of a month. Because the leap second is shifted by the offset, `1990-12-31T15:59:60-08:00` is the same leap second as `1990-12-31T23:59:60Z`.
-- Section 5.7 allows second 60 only at the end of months in which a leap second occurs. This library keeps no table of them, so it allows second 60 at the end of every month, which is more than section 5.7 allows. It also allows second 59 everywhere, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened. `Spec.Valid` states the rule as this library applies it.
+- Section 5.7 allows second 60 only at the end of months in which a leap second occurs. `isValid` and `parse` use no table of them, so they allow second 60 at the end of every month, which is more than section 5.7 allows; `isValidKnown`, below, checks it against the table. It also allows second 59 everywhere, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened. `Spec.Valid` states the rule as this library applies it.
 - The fraction is optional. When present it is a point and at least one digit, with no upper limit on the digits. The parser keeps every digit as written.
 - The offset is `Z`, `+hh:mm` or `-hh:mm`, with hours from 00 to 23 and minutes from 00 to 59. Section 4.3 gives `-00:00` its own meaning, an unknown local offset. It is therefore kept apart from `+00:00` and from `Z`, although all three name the same instant.
 - The note under the grammar lets `T` and `Z` be written in lower case. The parser accepts `t` and `z`, and printing writes upper case.
@@ -55,11 +55,11 @@ Every second from `0000-01-01T00:00:00Z` (-62167219200) to `9999-12-31T23:59:59Z
 Section 5.7 allows second 60 only "at the end of months in which a leap second occurs". `isValid` cannot know those months; `isValidKnown` uses a table of them. The table is tzdata's `leap-seconds.list`, which publishes IERS Bulletin C. `Spec/Leap.lean` copies it line for line: 28 NTP times, from 1 January 1972 to 1 January 2017, each with TAI − UTC from that time on, 10 to 37 seconds. Each line after the first follows a leap second, the second `23:59:60` UTC just before it, so there have been 27. The file expires on 28 June 2027: until then, no leap second comes that it does not list.
 
 - `isValidKnown` is `isValid`, with second 60 allowed only at one of the table's leap seconds. The instant is what counts, whatever the offset: `1990-12-31T15:59:60-08:00` is the leap second at the end of 1990, and `2017-01-01T00:59:60+01:00` the one at the end of 2016. `2015-12-31T23:59:60Z` is refused, since that leap second came at the end of June 2015.
-- `siSeconds` gives the SI seconds from `1972-01-01T00:00:00Z`, ignoring the fraction: Unix seconds, and one more for each leap second of the table before the timestamp. So `2016-12-31T23:59:59Z`, `2016-12-31T23:59:60Z` and `2017-01-01T00:00:00Z` get three numbers in a row, where Unix seconds give the last two the same one. On whole seconds valid by the table, these numbers are in the order of the instants, as `compareInstant` gives it.
+- `siSeconds` gives the Unix seconds from `1972-01-01T00:00:00Z`, ignoring the fraction, and one more for each leap second of the table before the timestamp. From 1972 on, those are the SI seconds between them. So `2016-12-31T23:59:59Z`, `2016-12-31T23:59:60Z` and `2017-01-01T00:00:00Z` get three numbers in a row, where Unix seconds give the last two the same one. On whole seconds valid by the table, these numbers are in the order of the instants, as `compareInstant` gives it.
 - `fromSiSeconds` goes back: from SI seconds to the UTC timestamp, a leap second as second 60. It gives one for every number from 0, `1972-01-01T00:00:00Z`, to that of `9999-12-31T23:59:59Z`, and `none` outside.
 - `taiMinusUtc` gives TAI − UTC: 10, and one more for each leap second before the timestamp. At every second from 1972 on, a leap second aside, it is the table's second column. During a leap second it is still the value from before it.
 
-Before 1972, UTC ran on seconds of varying length, so these numbers mean nothing there, and no statement covers them. A leap second announced after the table's date would need a new table, in the spec and in the code, and a new approval.
+Before 1972, UTC ran on seconds of varying length, with TAI − UTC not a whole number of seconds. There `siSeconds` is Unix seconds less 63072000, 86400 to a day, as `Spec.siSeconds_eq` says, which are not SI seconds, and `taiMinusUtc` gives 10, which means nothing. A leap second announced after the table's date would need a new table, in the spec and in the code, and a new approval.
 
 ## Errors
 
@@ -101,6 +101,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | `siSeconds` is Unix seconds since 1972 and one more for each leap second of the table before the timestamp. | `Spec.siSeconds_eq` |
 | On whole seconds valid by the table, `siSeconds` gives the order of the instants. | `Spec.siSeconds_order` |
 | `fromSiSeconds n` is `t` exactly when `t` is in UTC, with no fraction, valid by the table, from 1972 on, and has SI seconds `n`; it gives one for every second from 1972 to 9999. | `Spec.fromSiSeconds_iff`, `Spec.fromSiSeconds_isSome` |
+| `taiMinusUtc` is 10 and one more for each leap second of the table before the timestamp. | `Spec.taiMinusUtc_leapsBefore` |
 | TAI − UTC from 1972 on, at each second but a leap second, is the table's value. | `Spec.taiMinusUtc_eq` |
 | Leap seconds of the table and months without one; SI seconds and TAI − UTC around the first and the last; the round trip Unix seconds lose. | `Spec.leap_table_vectors` |
 
@@ -109,7 +110,7 @@ Together, these fix every output for valid input.
 - `parse` is fixed for every string.
 - `print`, `unixSeconds` and `compareInstant` are fixed for every valid timestamp. The parser gives only valid timestamps.
 - `fromUnixSeconds` is fixed for every number, by `Spec.fromUnixSeconds_iff` and `Spec.fromUnixSeconds_isSome`, and `fromSiSeconds` likewise by its two statements.
-- `isValidKnown` is fixed for every timestamp, and `siSeconds` for every valid one. `taiMinusUtc` is fixed for every valid timestamp from 1972 on but a leap second.
+- `isValidKnown` is fixed for every timestamp, and `siSeconds` for every valid one. `taiMinusUtc` is fixed for every valid timestamp, by `Spec.taiMinusUtc_leapsBefore`, and agrees with the table's column from 1972 on but at a leap second.
 - A parser that accepted nothing would meet `Spec.parse_valid`, but it would fail `Spec.parse_iff` and `Spec.parse_print`.
 - A parser that accepted too much would fail `Spec.parse_iff`.
 

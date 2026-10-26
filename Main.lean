@@ -23,7 +23,8 @@
                       outside the years 0000 to 9999; N is decimal, with
                       an optional leading `-`
     known HEX         prints  OK, then tab-separated: SI seconds since
-                      1972-01-01T00:00:00Z and TAI - UTC (`-` before
+                      1972-01-01T00:00:00Z (before 1972, Unix seconds
+                      less 63072000) and TAI - UTC (`-` before
                       1972, when TAI - UTC was not a whole number of
                       seconds); NOLEAP when the timestamp is valid but
                       its second 60 is not a leap second of the table;

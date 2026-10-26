@@ -13,11 +13,15 @@ open Rfc3339
 
 /-! ## The table
 
-`leap-seconds.list`, as tzdata ships it (here from
-`/usr/share/zoneinfo/leap-seconds.list`), gives "the times at which the
-offset between TAI and UTC changed and the value of the offset after
-that time". Each line is an NTP time, seconds since 1900-01-01T00:00:00Z
-with 86400 to a day, then TAI − UTC from that time on:
+`leap-seconds.list`, as tzdata 2026e ships it in
+`/usr/share/zoneinfo/leap-seconds.list`, is "Updated through IERS
+Bulletin C", its last update at NTP time 3992312697 (its `#$` line), and
+its own hash line reads `#h a9bad145 84c31c70 758402aa b37bfd54
+5923836a`. It defines its columns so: "NTP timestamp (X parameter) is
+the number of seconds since 1900.0", and "DTAI: The difference DTAI=
+TAI-UTC in units of seconds. It is the quantity to add to UTC to get the
+time in TAI". NTP time counts 86400 seconds to every day. Each data line
+is an NTP time and the DTAI from then on:
 
 ```
 2272060800      10      # 1 Jan 1972
@@ -52,7 +56,9 @@ with 86400 to a day, then TAI − UTC from that time on:
 
 "File expires on 28 June 2027": the table holds until then. The first
 line is the start of UTC as it is now, with TAI − UTC 10; each later
-line follows a leap second, the second 23:59:60 UTC just before it.
+line follows a leap second, the second 23:59:60 UTC just before it. The
+file adds that "so far, all leap seconds have been positive (a second has
+been added to UTC)".
 -/
 
 /-- The table, line for line: NTP time, and TAI − UTC from then on. -/
