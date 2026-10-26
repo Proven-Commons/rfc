@@ -55,7 +55,8 @@ Inputs come from a recorded seed:
   critical tags (sections 3.2 to 3.4), written again in this script.
   `ixdtf` requests must give the printed form, whether the example
   application must treat the string as erroneous, and the first `u-ca`
-  tag. The inputs are every example of sections 3.3, 3.4 and 4.2,
+  tag. The inputs are every example of sections 3.3, 3.4 and 4.2, the
+  edges of the grammar and rules written out below,
   random timestamps with random suffixes (time zones by name and by
   offset, tags with known, unknown and experimental keys, each item
   elective or critical, keys repeated), and those suffixes mutated: a
@@ -298,6 +299,28 @@ IX_EXAMPLES = [
     "1996-12-19T16:39:57-08:00", "1996-12-19T16:39:57-08:00[America/Los_Angeles]",
     "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]",
     "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]",
+]
+# The edges of the grammar and the rules, each written once.
+IX_EDGES = [
+    "2022-07-08T00:14:07Z[..]", "2022-07-08T00:14:07Z[a/..]", "2022-07-08T00:14:07Z[../a]",
+    "2022-07-08T00:14:07Z[...]", "2022-07-08T00:14:07Z[.a]", "2022-07-08T00:14:07Z[a/./b]",
+    "2022-07-08T00:14:07Z[+23:59]", "2022-07-08T00:14:07Z[+24:00]", "2022-07-08T00:14:07Z[-00:60]",
+    "2022-07-08T00:14:07Z[!+01:00]", "2022-07-08T00:14:07+01:00[!+01:00]",
+    "2022-07-08T00:14:07+02:00[!+01:00]", "2022-07-08T00:14:07-00:00[!+01:00]",
+    "2022-07-08T00:14:07+00:00[!-00:00]", "2022-07-08T00:14:07-00:00[!Europe/Paris]",
+    "2022-07-08T00:14:07+02:00[!Europe/Paris]", "2022-07-08T00:14:07Z[!Nowhere/Fake]",
+    "2022-07-08T00:14:07Z[!u-ca=hebrew][!u-ca=hebrew]", "2022-07-08T00:14:07Z[!u-ca=hebrew][u-ca=hebrew]",
+    "2022-07-08T00:14:07Z[u-ca=hebrew][u-ca=chinese][!u-ca=hebrew]", "2022-07-08T00:14:07Z[!u-ca=a-b]",
+    "2022-07-08T00:14:07Z[_=x]", "2022-07-08T00:14:07Z[!_x=y]", "2022-07-08T00:14:07Z[x_=y]",
+    "2022-07-08T00:14:07Z[u-ca=]", "2022-07-08T00:14:07Z[=x]", "2022-07-08T00:14:07Z[u-ca==x]",
+    "2022-07-08T00:14:07Z[u-ca=x-]", "2022-07-08T00:14:07Z[u-ca=-x]", "2022-07-08T00:14:07Z[Ab=x]",
+    "2022-07-08T00:14:07Z[0a=x]", "2022-07-08T00:14:07Z[-a=x]", "2022-07-08T00:14:07Z[!!u-ca=x]",
+    "2022-07-08T00:14:07Z[!]", "2022-07-08T00:14:07Z[]", "2022-07-08T00:14:07Z[Europe/Paris][Europe/Paris]",
+    "2022-07-08T00:14:07Z[u-ca=hebrew][Europe/Paris]", "2022-07-08T00:14:07Z[Europe/Paris]x",
+    "2022-07-08T00:14:07Z [Europe/Paris]", "2022-07-08T00:14:07Z[Europe//Paris]",
+    "2022-07-08T00:14:07Z[/Europe]", "2022-07-08T00:14:07Z[Europe/]", "2022-07-08T00:14:07Z[Z]",
+    "2022-07-08T00:14:07Z[UTC][u-ca=hebrew]", "2022-07-08T00:14:07Z[u-ca=Hebrew]",
+    "1990-12-31T23:59:60Z[u-ca=hebrew]", "2022-07-08t00:14:07z[u-ca=hebrew]",
 ]
 IX_NAMES = ["Europe/Paris", "Europe/London", "America/Los_Angeles", "Asia/Tokyo", "UTC", "Etc/GMT+5",
             "America/Argentina/Buenos_Aires", "_x", ".a", "a.b-c+d_e", "Z", "z"]
@@ -739,7 +762,7 @@ def cases(seed, count):
         fixed.append(("known", f"known {hexed(s)}", known(s), False))
     for n in si_grid():
         fixed.append(("fromsi", f"fromsi {n}", from_si(n), False))
-    for s in IX_EXAMPLES:
+    for s in IX_EXAMPLES + IX_EDGES:
         fixed.append(("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False))
     for req, _ in MALFORMED:
         fixed.append(("error", req, "error", False))
