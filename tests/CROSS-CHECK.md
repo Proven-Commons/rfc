@@ -26,7 +26,7 @@ Where each parser differs from this one, by the first category that fits the str
 
 ## Leap seconds
 
-- ERFA, through pyerfa 2.0.1.5, with its own leap second table
+- ERFA, through pyerfa 2.0.1.5, with its own leap second table. `dat` gets the UTC date and ERFA's own fraction of the day, from `dtf2d` and `jd2cal`, so a leap second gets 86400/86401, below 1.
 - Timestamps known valid by the table, from 1972 on, given to ERFA: 18834. Different SI seconds since 1972 or TAI - UTC: 0. Before 1972, where TAI - UTC was not a whole number of seconds, not compared: 1717.
 - SI seconds turned back into timestamps, of which 27 leap seconds, and given to ERFA for their SI seconds: 8695. Different: 0.
 
