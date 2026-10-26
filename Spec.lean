@@ -163,14 +163,18 @@ theorem Spec.fromUnixSeconds_isSome (s : Int) :
         s ≤ Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
 
 /-- The epoch; the example of section 5.8; a leap day; the last second a
-    signed 32-bit count reaches; the second before the epoch; the ends of
-    the range, and one second past each. -/
+    signed 32-bit count reaches; the second before the epoch; the last
+    second of 0096, a day where the code's first estimate of the year is
+    one too high, and the second after it; the ends of the range, and one
+    second past each. -/
 theorem Spec.fromUnixSeconds_vectors :
     Rfc3339.fromUnixSeconds 0 = some ⟨1970, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 482196050 = some ⟨1985, 4, 12, 23, 20, 50, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 951782400 = some ⟨2000, 2, 29, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 2147483647 = some ⟨2038, 1, 19, 3, 14, 7, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-1) = some ⟨1969, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-59106067201) = some ⟨96, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-59106067200) = some ⟨97, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 ∧
     Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 ∧
     Rfc3339.fromUnixSeconds (-62167219200) = some ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ∧

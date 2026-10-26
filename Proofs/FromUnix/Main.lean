@@ -124,6 +124,8 @@ theorem Spec.fromUnixSeconds_vectors :
     Rfc3339.fromUnixSeconds 951782400 = some ⟨2000, 2, 29, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 2147483647 = some ⟨2038, 1, 19, 3, 14, 7, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-1) = some ⟨1969, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-59106067201) = some ⟨96, 12, 31, 23, 59, 59, [], .z⟩ ∧
+    Rfc3339.fromUnixSeconds (-59106067200) = some ⟨97, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 ∧
     Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 ∧
     Rfc3339.fromUnixSeconds (-62167219200) = some ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ∧
