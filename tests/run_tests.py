@@ -66,10 +66,10 @@ Inputs come from a recorded seed:
   the first bracket dropped or a last one left open, a key in upper
   case, `.` or `..` as a zone part, an empty item or value, a time zone
   after a tag. Half the time, a character put in is one of the odd
-  characters of the mutations below, or one that looks like a character
-  of the grammar, such as U+212A KELVIN SIGN or a fullwidth bracket. A
-  second generator, seeded from the same seed, picks those, so that
-  adding them changed no other input;
+  characters of the mutations below, `ü`, or one that looks like a
+  character of the grammar, such as U+212A KELVIN SIGN or a fullwidth
+  bracket. A second generator, seeded from the same seed, picks those,
+  so that adding them changed no other input;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
