@@ -318,7 +318,7 @@ IX_EXAMPLES = [
     # treated as, and Figure 4's instant in UTC, from section 4.2's text
     "2022-07-08T00:14:07+01:00", "1996-12-20T00:39:57Z",
     # Section 1.2's two strings with no seconds. RFC 3339's date-time
-    # requires them, since partial-time has time-second, so both are
+    # requires seconds, since partial-time has time-second, so both are
     # refused.
     "2020-01-01T00:00+01:00[Europe/Paris]", "2020-01-01T00:00+01:00[+01:00]",
 ]
@@ -393,10 +393,11 @@ def random_suffix(rng):
     return "".join(items)
 
 
-# Characters that look like those of the grammar, for suffixes: U+212A
-# KELVIN SIGN, which lower-cases to `k`, U+017F LATIN SMALL LETTER LONG S,
-# which upper-cases to `S`, and fullwidth brackets. With `ODD_CHARS`
-# below, which has non-ASCII digits and letters, NUL and line breaks.
+# More odd characters, for suffixes: a letter outside ASCII, and some
+# that look like characters of the grammar: U+212A KELVIN SIGN, which
+# lower-cases to `k`, U+017F LATIN SMALL LETTER LONG S, which upper-cases
+# to `S`, and fullwidth brackets. `ODD_CHARS`, below, has non-ASCII
+# digits and letters, NUL and line breaks.
 IX_ODD_CHARS = ["ü", "\u212a", "\u017f", "\uff3b", "\uff3d"]
 
 
