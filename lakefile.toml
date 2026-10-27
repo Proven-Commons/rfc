@@ -1,5 +1,6 @@
 name = "rfc3339"
 version = "0.1.0"
+license = "Apache-2.0"
 defaultTargets = ["Rfc3339", "Spec", "Proofs", "rfc3339"]
 
 [[lean_lib]]
