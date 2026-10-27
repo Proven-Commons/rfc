@@ -73,6 +73,7 @@ RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. Afte
   - A value is one or more ASCII letters or digits.
 - The time zone, when there is one, comes before every tag.
 - In ABNF, alternation binds more loosely than concatenation, so the `time-zone` rule as written reads `("[" critical-flag time-zone-name) / (time-numoffset "]")`. The spec follows the intent, which section 4.1's note and every example show: a name or an offset between the brackets.
+- Section 1.2's two strings with no seconds, `2020-01-01T00:00+01:00[Europe/Paris]` and `2020-01-01T00:00+01:00[+01:00]`, do not match the grammar, since RFC 3339's `date-time` requires seconds. So the spec refuses them. They and the `time-zone` rule could be reported to the RFC Editor as errata. None is on file for either.
 
 `parseExt` reads such a string. It returns an `Ext`:
 - the timestamp, as `parse` reads it;
@@ -147,7 +148,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Spec.parseExt_plain` |
 | `lookup` gives the first tag with the key. | `Spec.lookup_iff` |
 | `erroneous` decides `Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Spec.erroneous_iff` |
-| Of the timestamps of RFC 9557 in sections 1.2, 3.3, 3.4 and 4.2, the two of section 1.2 with no seconds are not read, since `date-time` requires `time-second`; two with no suffix, `2022-07-08T00:14:07+01:00` and `1996-12-20T00:39:57Z`, are not stated; the others are read, and sixteen of them are judged, and are erroneous for the example application exactly where the RFC says; two, `1996-12-19T16:39:57-08:00` and `2022-07-08T00:14:07+08:45[+08:45]`, are stated only as what they read as, and `2022-07-08T00:14:07Z[u-ca=chinese]`, which section 3.3 says is treated the same as `2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]`, only by its first `u-ca` tag; critical zones that agree with the offset and a critical `-00:00` zone that does not are judged too; two strings are judged by a second application, `Spec.secondProcessor`; other strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
+| Of the 23 timestamps of RFC 9557 in sections 1.2, 3.3, 3.4 and 4.2, the two of section 1.2 with no seconds are refused, since `date-time` requires `time-second`; the other 21 are read, and sixteen of them are judged, and are erroneous for the example application exactly where the RFC says; four, `1996-12-19T16:39:57-08:00`, `1996-12-20T00:39:57Z`, `2022-07-08T00:14:07+01:00` and `2022-07-08T00:14:07+08:45[+08:45]`, are stated only as what they read as, and `2022-07-08T00:14:07Z[u-ca=chinese]`, which section 3.3 says an application that does not process the repeated key further treats the same as `2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]`, only by its first `u-ca` tag; critical zones that agree with the offset and a critical `-00:00` zone that does not are judged too; two strings are judged by a second application, `Spec.secondProcessor`; other strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
 
 Together, these fix every output for valid input.
 

@@ -302,31 +302,34 @@ theorem Spec.lookup_iff (e : Ext) (k : List Char) (t : Tag) :
 theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
     e.erroneous p = true ↔ Spec.MustReject p e := sorry
 
-/-- The timestamps of RFC 9557 in sections 1.2, 3.3, 3.4 and 4.2, with
-    the application of `Spec.exampleProcessor`. Two of them, both with
-    no suffix, are not here: `2022-07-08T00:14:07+01:00`, which section
-    3.3 says its first example can be treated as, and
-    `1996-12-20T00:39:57Z`, the instant of Figure 4 in UTC. Section 1.2
-    gives two with no seconds, and the grammar refuses them: RFC 3339,
-    section 5.6, makes `time-second` part of `partial-time`, which
-    `date-time` requires. Section 5.6 has
+/-- The 23 timestamps of RFC 9557 in sections 1.2, 3.3, 3.4 and 4.2,
+    each of them, with the application of `Spec.exampleProcessor`.
+    Section 1.2 gives two with no seconds, and the grammar refuses them:
+    RFC 3339, section 5.6, makes `time-second` part of `partial-time`,
+    which `date-time` requires. Section 5.6 has
     `date-time = full-date "T" full-time`,
     `full-time = partial-time time-offset` and
     `partial-time = time-hour ":" time-minute ":" time-second [time-secfrac]`.
-    Each of the others is read. Sixteen of them are judged, and are
-    erroneous exactly where the RFC says they must be treated so. Two
-    are given only as their `Ext`: `1996-12-19T16:39:57-08:00`, of
-    Figure 4, and `2022-07-08T00:14:07+08:45[+08:45]`, of section 1.2.
-    One is given only by its first `u-ca` tag:
-    `2022-07-08T00:14:07Z[u-ca=chinese]`, which section 3.3 says is
-    treated the same as `2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]`.
+    The other 21 are read. Sixteen of them are judged, and are erroneous
+    exactly where the RFC says they must be treated so. Four are given
+    only as their `Ext`: `1996-12-19T16:39:57-08:00`, of Figure 4;
+    `1996-12-20T00:39:57Z`, which section 4.2 says is the same instant,
+    as `Spec.rfc3339_example_instants` states;
+    `2022-07-08T00:14:07+01:00`, which section 3.3 says its first
+    example can be treated as; and `2022-07-08T00:14:07+08:45[+08:45]`,
+    of section 1.2. One is given only by its first `u-ca` tag:
+    `2022-07-08T00:14:07Z[u-ca=chinese]`, which section 3.3 says an
+    application that does not process the repeated key further treats
+    the same as `2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]`.
     Also critical time zones that agree with the offset, a critical
     `-00:00` zone that does not, two strings judged by the application
     of `Spec.secondProcessor`, and other strings the grammar refuses. -/
 theorem Spec.ixdtf_vectors :
-    -- Section 4.2, Figures 4 to 7
+    -- Section 4.2: Figure 4, the same instant in UTC, and Figures 5 to 7
     parseExt "1996-12-19T16:39:57-08:00" =
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none, []⟩ ∧
+    parseExt "1996-12-20T00:39:57Z" =
+      some ⟨⟨1996, 12, 20, 0, 39, 57, [], .z⟩, none, []⟩ ∧
     parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]" =
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
         some (false, .name ["America".toList, "Los_Angeles".toList]), []⟩ ∧
@@ -353,10 +356,12 @@ theorem Spec.ixdtf_vectors :
     -- refuses
     parseExt "2020-01-01T00:00+01:00[Europe/Paris]" = none ∧
     parseExt "2020-01-01T00:00+01:00[+01:00]" = none ∧
-    -- Section 3.3, elective: an inconsistent zone, the zones of the note,
-    -- an unknown key, repeated keys
+    -- Section 3.3, elective: an inconsistent zone and the string it can
+    -- be treated as, the zones of the note, an unknown key, repeated keys
     ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
       some false) ∧
+    parseExt "2022-07-08T00:14:07+01:00" =
+      some ⟨⟨2022, 7, 8, 0, 14, 7, [], .plus 1 0⟩, none, []⟩ ∧
     ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
       some false) ∧
     ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =

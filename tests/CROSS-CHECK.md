@@ -6,7 +6,7 @@ Written by `tests/cross_check.py`, once, by hand. It is not part of the verified
 - Go: `time.Parse(time.RFC3339Nano, s)`, go version go1.24.7 linux/amd64
 - rfc3339-validator 0.1.4 (Python 3.13.17), called on the string as given. `jsonschema` calls it for its `date-time` check on the upper-cased string, so the lower case rows below do not apply to `jsonschema`.
 - Seed: 20261025
-- Strings: 181849
+- Strings: 181845
 - Strings both this project and Go accept, read to a different instant: 0
 
 Where each parser differs from this one, by the first category that fits the string:
@@ -35,7 +35,7 @@ Where each parser differs from this one, by the first category that fits the str
 
 - Node v22.22.0, `Temporal.Instant.from`, with `--harmony-temporal`: V8's Temporal behind a flag, older than the current proposal
 - This Temporal is V8's own, here V8 12.4.254.21-node.33. Node's `process.versions` also gives ICU 77.1 and time zone data 2025b.
-- Strings: 7143, of which this project reads 5302. The same answer, read or refused: 2833.
+- Strings: 7147, of which this project reads 5304. The same answer, read or refused: 2835.
 
 Where Temporal differs from this project, by the first category that fits the string:
 
@@ -48,5 +48,6 @@ Where Temporal differs from this project, by the first category that fits the st
 | refuses | a calendar with a part outside 3 to 8 characters, which the older proposal refuses | 111 | `'2022-07-08T00:14:07+00:00[u-ca=0]'`, `'2022-07-08T00:14:07+00:00[+01:00][u-ca=a-b]'` |
 | refuses | a repeated elective `u-ca` | 70 | `'2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]'`, `'2024-02-04T15:17:00+23:59[+01:00][x=a-b][u-ca=a-b][u-ca=blargel]'` |
 | refuses | a time zone name with a digit or `+`, or a part over 14 characters, which the older proposal refuses | 41 | `'2404-02-29T00:37:44.236447+18:26[a.b-c+d_e]'`, `'3793-03-02T15:50:39.27-20:39[a.b-c+d_e]'` |
+| accepts | an RFC 3339 part the RFC does not allow | 2 | `'2020-01-01T00:00+01:00[Europe/Paris]'`, `'2020-01-01T00:00+01:00[+01:00]'` |
 | accepts | a time zone offset with no colon, as ISO 8601's basic format writes it | 1 | `'6121-04-02t21:22:26.9+05:04[+0530]'` |
 | accepts | another suffix the grammar refuses | 1 | `'5984-06-01T02:30:25.893247-11:17[u-ca=gregory]]'` |

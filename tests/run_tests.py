@@ -56,9 +56,9 @@ Inputs come from a recorded seed:
   critical tags (sections 3.2 to 3.4), written again in this script.
   `ixdtf` requests must give the printed form, whether the example
   application must treat the string as erroneous, and the first `u-ca`
-  tag. The inputs are the examples of sections 1.2, 3.3, 3.4 and 4.2
-  that `Spec.ixdtf_vectors` reads, the edges of the grammar and rules
-  written out below,
+  tag. The inputs are the 23 timestamps of sections 1.2, 3.3, 3.4 and
+  4.2, which `Spec.ixdtf_vectors` also states, the edges of the grammar
+  and rules written out below,
   random timestamps with random suffixes (time zones by name and by
   offset, tags with known, unknown and experimental keys, each item
   elective or critical, keys repeated), and those suffixes mutated: a
@@ -298,6 +298,7 @@ def ixdtf(s):
     return f"OK\t{f['print']}{sfx}\t{'true' if bad else 'false'}\t{cal}"
 
 
+# The 23 timestamps of RFC 9557 in sections 1.2, 3.3, 3.4 and 4.2.
 IX_EXAMPLES = [
     "2022-07-08T00:14:07+01:00[Europe/Paris]", "2022-07-08T00:14:07Z[Europe/Paris]",
     "2022-07-08T02:14:07+02:00[Europe/Paris]", "2022-07-08T00:14:07+01:00[knort=blargel]",
@@ -309,6 +310,13 @@ IX_EXAMPLES = [
     "1996-12-19T16:39:57-08:00", "1996-12-19T16:39:57-08:00[America/Los_Angeles]",
     "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]",
     "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]", "2022-07-08T00:14:07+08:45[+08:45]",
+    # With no suffix: the string section 3.3 says its first example can be
+    # treated as, and Figure 4's instant in UTC, from section 4.2's text
+    "2022-07-08T00:14:07+01:00", "1996-12-20T00:39:57Z",
+    # Section 1.2's two strings with no seconds. RFC 3339's date-time
+    # requires them, since partial-time has time-second, so both are
+    # refused.
+    "2020-01-01T00:00+01:00[Europe/Paris]", "2020-01-01T00:00+01:00[+01:00]",
 ]
 # The edges of the grammar and the rules, each written once.
 IX_EDGES = [
