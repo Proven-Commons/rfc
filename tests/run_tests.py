@@ -58,14 +58,18 @@ Inputs come from a recorded seed:
   application must treat the string as erroneous, and the first `u-ca`
   tag. The inputs are the 23 timestamps of sections 1.2, 3.3, 3.4 and
   4.2, which `Spec.ixdtf_vectors` also states, the edges of the grammar
-  and rules written out below,
+  and rules written out below, characters outside ASCII among them,
   random timestamps with random suffixes (time zones by name and by
   offset, tags with known, unknown and experimental keys, each item
   elective or critical, keys repeated), and those suffixes mutated: a
   character changed, dropped or added, brackets, `!` and `=` among them,
   the first bracket dropped or a last one left open, a key in upper
   case, `.` or `..` as a zone part, an empty item or value, a time zone
-  after a tag;
+  after a tag. Half the time, a character put in is one of the odd
+  characters of the mutations below, or one that looks like a character
+  of the grammar, such as U+212A KELVIN SIGN or a fullwidth bracket. A
+  second generator, seeded from the same seed, picks those, so that
+  adding them changed no other input;
 - malformed requests, which the tool must answer with `error`.
 
 Every seventh request ends in CR LF. The first 20,000 parsed strings
@@ -351,6 +355,17 @@ IX_EDGES = [
     "2022-07-08T00:14:07Z[u-ca=chinese-japanese][!u-ca=chinese]",
     "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=japanese]",
     "2022-07-08T00:14:07Z[!u-ca=chinese][!u-ca=chinese]",
+    # Characters outside ASCII, which ALPHA and DIGIT do not include: é
+    # and ü, U+212A KELVIN SIGN, a fullwidth letter, an Arabic-Indic
+    # digit, fullwidth brackets, and NUL
+    "2022-07-08T00:14:07Z[Europe/Zürich]", "2022-07-08T00:14:07Z[u-ca=hébrew]",
+    "2022-07-08T00:14:07Z[\u212aelvin]", "2022-07-08T00:14:07Z[\u212anort=blargel]",
+    "2022-07-08T00:14:07Z[u-ca=\uff48ebrew]", "2022-07-08T00:14:07Z[u-ca=x\u0661]",
+    "2022-07-08T00:14:07Z[\uff3bEurope/Paris]", "2022-07-08T00:14:07Z[Europe/Paris\uff3d",
+    "2022-07-08T00:14:07Z[Europe/Par\x00is]",
+    # A zone part that starts with a digit or a sign, or holds a colon
+    "2022-07-08T00:14:07Z[1a]", "2022-07-08T00:14:07Z[a/1b]", "2022-07-08T00:14:07Z[a/-b]",
+    "2022-07-08T00:14:07Z[a/+b]", "2022-07-08T00:14:07Z[a:b]",
 ]
 IX_NAMES = ["Europe/Paris", "Europe/London", "America/Los_Angeles", "Asia/Tokyo", "UTC", "Etc/GMT+5",
             "America/Argentina/Buenos_Aires", "_x", ".a", "a.b-c+d_e", "Z", "z"]
@@ -378,16 +393,32 @@ def random_suffix(rng):
     return "".join(items)
 
 
-def mutate_suffix(rng, sfx):
-    """A suffix with one change that is likely to break the grammar."""
+# Characters that look like those of the grammar, for suffixes: U+212A
+# KELVIN SIGN, which lower-cases to `k`, U+017F LATIN SMALL LETTER LONG S,
+# which upper-cases to `S`, and fullwidth brackets. With `ODD_CHARS`
+# below, which has non-ASCII digits and letters, NUL and line breaks.
+IX_ODD_CHARS = ["ü", "\u212a", "\u017f", "\uff3b", "\uff3d"]
+
+
+def odd_char(odd, c):
+    """`c`, or half the time an odd character, drawn by `odd`."""
+    return odd.choice(ODD_CHARS + IX_ODD_CHARS) if odd.random() < 0.5 else c
+
+
+def mutate_suffix(rng, sfx, odd):
+    """A suffix with one change that is likely to break the grammar. The
+    odd characters are drawn by `odd`, so `rng` draws what it drew
+    before they were added."""
     op = rng.randrange(10)
     c = list(sfx)
     if op == 0 and c:
-        c[rng.randrange(len(c))] = rng.choice("[]!=-/.+_aZ0 ")
+        new = rng.choice("[]!=-/.+_aZ0 ")
+        c[rng.randrange(len(c))] = odd_char(odd, new)
     elif op == 1 and c:
         del c[rng.randrange(len(c))]
     elif op == 2:
-        c.insert(rng.randint(0, len(c)), rng.choice("[]!=-/.+_aZ0"))
+        i = rng.randint(0, len(c))
+        c.insert(i, odd_char(odd, rng.choice("[]!=-/.+_aZ0")))
     elif op == 3:
         return sfx + rng.choice(["[]", "[!]", "[=x]", "[x=]", "[.]", "[..]", "[a/..]", "[a//b]"])
     elif op == 4:
@@ -405,12 +436,12 @@ def mutate_suffix(rng, sfx):
     return "".join(c)
 
 
-def random_ixdtf(rng):
+def random_ixdtf(rng, odd):
     base = random_valid(rng) if rng.random() < 0.7 else stamp(
         2022, 7, 8, 0, 14, 7, "", rng.choice(["Z", "-00:00", "+00:00", "+01:00", "+02:00", "-08:00"]))
     sfx = random_suffix(rng)
     if rng.random() < 0.3:
-        sfx = mutate_suffix(rng, sfx)
+        sfx = mutate_suffix(rng, sfx, odd)
     return base + sfx
 
 
@@ -803,6 +834,8 @@ def hexed(s):
 def cases(seed, count):
     """(label, request, expected answer, mutated) for each input."""
     rng = random.Random(seed)
+    # The odd characters of the IXDTF mutations, apart from `rng`.
+    odd = random.Random(f"{seed} odd")
     # The short lists first, so that a run with a small count has them.
     fixed = [("error", req, "error", False) for req, _ in MALFORMED]
     for s in KNOWN_REJECT:
@@ -828,7 +861,7 @@ def cases(seed, count):
     while made < count:
         r = rng.random()
         if r < 0.03:
-            s = random_ixdtf(rng)
+            s = random_ixdtf(rng, odd)
             yield ("ixdtf", f"ixdtf {hexed(s)}", ixdtf(s), False)
             made += 1
             continue

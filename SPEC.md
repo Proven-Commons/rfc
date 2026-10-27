@@ -66,12 +66,13 @@ Before 1972, UTC ran on seconds of varying length, with TAI − UTC not a whole 
 RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. After the timestamp may come a suffix: a time zone in brackets, then tags in brackets. Each may be marked critical with `!`. An example is `1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]`. `Spec/Ixdtf.lean` quotes the grammar of section 4.1.
 
 - The time zone is a name or a numeric offset:
-  - A name is one or more parts joined by `/`. Each part starts with a letter, `.` or `_`, and goes on with letters, digits, `.`, `_`, `-` and `+`. It may not be `.` or `..`.
+  - A name is one or more parts joined by `/`. Each part starts with an ASCII letter, `.` or `_`, and goes on with ASCII letters, ASCII digits, `.`, `_`, `-` and `+`. It may not be `.` or `..`.
   - An offset is RFC 3339's `+hh:mm` or `-hh:mm`, in range. It may not be `Z`, which in brackets reads as a one-letter zone name.
 - A tag is a key, `=`, and one or more values joined by `-`:
-  - The key starts with a lower case letter or `_`, and goes on with lower case letters, digits, `_` and `-`.
+  - The key starts with a lower case ASCII letter or `_`, and goes on with lower case ASCII letters, ASCII digits, `_` and `-`.
   - A value is one or more ASCII letters or digits.
 - The time zone, when there is one, comes before every tag.
+- Letters and digits are ASCII only, as RFC 5234 defines `ALPHA` and `DIGIT`. So `2022-07-08T00:14:07Z[Europe/Zürich]` is refused.
 - In ABNF, alternation binds more loosely than concatenation, so the `time-zone` rule as written reads `("[" critical-flag time-zone-name) / (time-numoffset "]")`. The spec follows the intent, which section 4.1's note and every example show: a name or an offset between the brackets.
 - Section 1.2's two strings with no seconds, `2020-01-01T00:00+01:00[Europe/Paris]` and `2020-01-01T00:00+01:00[+01:00]`, do not match the grammar, since RFC 3339's `date-time` requires seconds. So the spec refuses them. They and the `time-zone` rule could be reported to the RFC Editor as errata. None is on file for either.
 
