@@ -3,9 +3,9 @@
 -/
 
 import Rfc3339
-import Spec.Ixdtf
-import Proofs.Format
-import Proofs.Valid
+import Rfc3339.Spec.Ixdtf
+import Rfc3339.Proofs.Format
+import Rfc3339.Proofs.Valid
 
 open Rfc3339
 
@@ -13,21 +13,21 @@ namespace Rfc3339.Proofs.Ixdtf
 
 /-! ## Characters -/
 
-theorem sx_alpha_ne {c : Char} (h : Spec.Alpha c) :
+theorem sx_alpha_ne {c : Char} (h : Rfc3339.Spec.Alpha c) :
     c ≠ ']' ∧ c ≠ '=' ∧ c ≠ '/' ∧ c ≠ '!' ∧ c ≠ '+' ∧ c ≠ '-' := by
-  unfold Spec.Alpha at h
+  unfold Rfc3339.Spec.Alpha at h
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rintro rfl <;> revert h <;> decide
 
-theorem sx_digit_ne {c : Char} (h : Spec.Digit c) :
+theorem sx_digit_ne {c : Char} (h : Rfc3339.Spec.Digit c) :
     c ≠ ']' ∧ c ≠ '=' ∧ c ≠ '/' ∧ c ≠ '!' ∧ c ≠ '+' ∧ c ≠ '-' := by
-  unfold Spec.Digit at h
+  unfold Rfc3339.Spec.Digit at h
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rintro rfl <;> revert h <;> decide
 
 theorem sx_lower_ne {c : Char} (h : 'a' ≤ c ∧ c ≤ 'z') :
     c ≠ ']' ∧ c ≠ '=' ∧ c ≠ '/' ∧ c ≠ '!' ∧ c ≠ '+' ∧ c ≠ '-' := by
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rintro rfl <;> revert h <;> decide
 
-theorem sx_zonePart_chars {p : List Char} (hp : Spec.ZonePart p) :
+theorem sx_zonePart_chars {p : List Char} (hp : Rfc3339.Spec.ZonePart p) :
     ∀ x ∈ p, x ≠ ']' ∧ x ≠ '=' ∧ x ≠ '/' := by
   obtain ⟨c, cs, rfl, hc, hcs, -, -⟩ := hp
   intro x hx
@@ -42,7 +42,7 @@ theorem sx_zonePart_chars {p : List Char} (hp : Spec.ZonePart p) :
     · have := sx_digit_ne h; exact ⟨this.1, this.2.1, this.2.2.1⟩
     all_goals decide
 
-theorem sx_zonePart_head {p : List Char} (hp : Spec.ZonePart p) :
+theorem sx_zonePart_head {p : List Char} (hp : Rfc3339.Spec.ZonePart p) :
     ∃ c cs, p = c :: cs ∧ c ≠ '!' ∧ c ≠ '+' ∧ c ≠ '-' := by
   obtain ⟨c, cs, rfl, hc, -, -, -⟩ := hp
   refine ⟨c, cs, rfl, ?_⟩
@@ -50,7 +50,7 @@ theorem sx_zonePart_head {p : List Char} (hp : Spec.ZonePart p) :
   · have := sx_alpha_ne h; exact ⟨this.2.2.2.1, this.2.2.2.2.1, this.2.2.2.2.2⟩
   all_goals decide
 
-theorem sx_key_chars {k : List Char} (hk : Spec.SuffixKey k) : ∀ x ∈ k, x ≠ ']' ∧ x ≠ '=' := by
+theorem sx_key_chars {k : List Char} (hk : Rfc3339.Spec.SuffixKey k) : ∀ x ∈ k, x ≠ ']' ∧ x ≠ '=' := by
   obtain ⟨c, cs, rfl, hc, hcs⟩ := hk
   intro x hx
   rcases List.mem_cons.mp hx with rfl | hx
@@ -63,32 +63,32 @@ theorem sx_key_chars {k : List Char} (hk : Spec.SuffixKey k) : ∀ x ∈ k, x �
     · have := sx_digit_ne h; exact ⟨this.1, this.2.1⟩
     · decide
 
-theorem sx_key_head {k : List Char} (hk : Spec.SuffixKey k) : ∃ c cs, k = c :: cs ∧ c ≠ '!' := by
+theorem sx_key_head {k : List Char} (hk : Rfc3339.Spec.SuffixKey k) : ∃ c cs, k = c :: cs ∧ c ≠ '!' := by
   obtain ⟨c, cs, rfl, hc, -⟩ := hk
   refine ⟨c, cs, rfl, ?_⟩
   rcases hc with h | rfl
   · exact (sx_lower_ne h).2.2.2.1
   · decide
 
-theorem sx_value_chars {v : List Char} (hv : Spec.SuffixValue v) :
+theorem sx_value_chars {v : List Char} (hv : Rfc3339.Spec.SuffixValue v) :
     ∀ x ∈ v, x ≠ ']' ∧ x ≠ '=' ∧ x ≠ '-' := by
   intro x hx
   rcases hv.2 x hx with h | h
   · have := sx_alpha_ne h; exact ⟨this.1, this.2.1, this.2.2.2.2.2⟩
   · have := sx_digit_ne h; exact ⟨this.1, this.2.1, this.2.2.2.2.2⟩
 
-theorem sx_alpha_iff (c : Char) : isAlpha c = true ↔ Spec.Alpha c := by
-  simp [isAlpha, Spec.Alpha]
-theorem sx_digit_iff (c : Char) : isDigitChar c = true ↔ Spec.Digit c := by
-  simp [isDigitChar, Spec.Digit]
-theorem sx_keyOK_iff (k : List Char) : keyOK k = true ↔ Spec.SuffixKey k := by
+theorem sx_alpha_iff (c : Char) : isAlpha c = true ↔ Rfc3339.Spec.Alpha c := by
+  simp [isAlpha, Rfc3339.Spec.Alpha]
+theorem sx_digit_iff (c : Char) : isDigitChar c = true ↔ Rfc3339.Spec.Digit c := by
+  simp [isDigitChar, Rfc3339.Spec.Digit]
+theorem sx_keyOK_iff (k : List Char) : keyOK k = true ↔ Rfc3339.Spec.SuffixKey k := by
   cases k with
-  | nil => simp [keyOK, Spec.SuffixKey]
+  | nil => simp [keyOK, Rfc3339.Spec.SuffixKey]
   | cons c cs =>
-    simp only [keyOK, Spec.SuffixKey, sx_digit_iff, Bool.and_eq_true, Bool.or_eq_true, List.all_eq_true, beq_iff_eq, decide_eq_true_eq, List.cons.injEq]
+    simp only [keyOK, Rfc3339.Spec.SuffixKey, sx_digit_iff, Bool.and_eq_true, Bool.or_eq_true, List.all_eq_true, beq_iff_eq, decide_eq_true_eq, List.cons.injEq]
     grind
-theorem sx_valueOK_iff (v : List Char) : valueOK v = true ↔ Spec.SuffixValue v := by
-  simp only [valueOK, Spec.SuffixValue, sx_digit_iff, sx_alpha_iff, Bool.and_eq_true, Bool.or_eq_true, List.all_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff, ne_eq]
+theorem sx_valueOK_iff (v : List Char) : valueOK v = true ↔ Rfc3339.Spec.SuffixValue v := by
+  simp only [valueOK, Rfc3339.Spec.SuffixValue, sx_digit_iff, sx_alpha_iff, Bool.and_eq_true, Bool.or_eq_true, List.all_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff, ne_eq]
 theorem sx_drop_takeWhile (p : α → Bool) (xs : List α) : xs.drop (xs.takeWhile p).length = xs.dropWhile p := by
   induction xs with
   | nil => rfl
@@ -102,8 +102,8 @@ theorem sx_takeWhile_append {p : α → Bool} (xs : List α) (y : α) (ys : List
   | cons x xs ih =>
     simp only [List.cons_append, List.takeWhile_cons, hx x (by simp), ↓reduceIte]
     rw [ih (fun z hz => hx z (by simp [hz]))]
-theorem sx_digitChar_mem (n : Nat) : Spec.digitChar n ∈ "0123456789?".toList := by
-  unfold Spec.digitChar
+theorem sx_digitChar_mem (n : Nat) : Rfc3339.Spec.digitChar n ∈ "0123456789?".toList := by
+  unfold Rfc3339.Spec.digitChar
   rw [List.getD_eq_getElem?_getD]
   cases h : "0123456789".toList[n]? with
   | none => decide
@@ -111,8 +111,8 @@ theorem sx_digitChar_mem (n : Nat) : Spec.digitChar n ∈ "0123456789?".toList :
     have := List.mem_of_getElem? h
     simp only [Option.getD_some]
     revert this; generalize x = y; revert y; decide
-theorem sx_digits_mem {k n : Nat} {c : Char} (h : c ∈ Spec.digits k n) : c ∈ "0123456789?".toList := by
-  unfold Spec.digits at h
+theorem sx_digits_mem {k n : Nat} {c : Char} (h : c ∈ Rfc3339.Spec.digits k n) : c ∈ "0123456789?".toList := by
+  unfold Rfc3339.Spec.digits at h
   simp only [List.mem_map] at h
   obtain ⟨i, _, rfl⟩ := h
   exact sx_digitChar_mem _
@@ -142,11 +142,11 @@ theorem sx_join_cons {α : Type} (s p : List α) (rest : List (List α)) :
 theorem sx_intercalate_eq {α : Type} (s : List α) (ls : List (List α)) :
     s.intercalate ls = (ls.intersperse s).flatten := rfl
 
-theorem sx_zonePartOK_iff (p : List Char) : zonePartOK p = true ↔ Spec.ZonePart p := by
+theorem sx_zonePartOK_iff (p : List Char) : zonePartOK p = true ↔ Rfc3339.Spec.ZonePart p := by
   cases p with
-  | nil => simp [zonePartOK, Spec.ZonePart]
+  | nil => simp [zonePartOK, Rfc3339.Spec.ZonePart]
   | cons c cs =>
-    simp only [zonePartOK, Spec.ZonePart, sx_alpha_iff, sx_digit_iff, Bool.and_eq_true,
+    simp only [zonePartOK, Rfc3339.Spec.ZonePart, sx_alpha_iff, sx_digit_iff, Bool.and_eq_true,
       Bool.or_eq_true, List.all_eq_true, beq_iff_eq, bne_iff_ne, ne_eq, List.cons.injEq]
     grind
 
@@ -154,10 +154,10 @@ theorem sx_zonePartOK_iff (p : List Char) : zonePartOK p = true ↔ Spec.ZonePar
 def sx_tagBody (t : Tag) : List Char := t.key ++ ['='] ++ (t.values.intersperse ['-']).flatten
 
 /-- An item: brackets around the flag and the body. -/
-def sx_item (c : Bool) (b : List Char) : List Char := ['['] ++ Spec.renderFlag c ++ b ++ [']']
+def sx_item (c : Bool) (b : List Char) : List Char := ['['] ++ Rfc3339.Spec.renderFlag c ++ b ++ [']']
 
 theorem sx_parseTag_sound {c : Bool} {b : List Char} {t : Tag} (h : parseTag c b = some t) :
-    Spec.TagValid t ∧ t.critical = c ∧ b = sx_tagBody t := by
+    Rfc3339.Spec.TagValid t ∧ t.critical = c ∧ b = sx_tagBody t := by
   unfold parseTag at h
   have hb := (sx_drop_takeWhile (fun x => decide (x ≠ '=')) b).symm ▸
     (List.takeWhile_append_dropWhile (p := fun x => decide (x ≠ '=')) (l := b))
@@ -177,7 +177,7 @@ theorem sx_parseTag_sound {c : Bool} {b : List Char} {t : Tag} (h : parseTag c b
     · simp at h
   · simp at h
 
-theorem sx_parseTag_render {t : Tag} (h : Spec.TagValid t) :
+theorem sx_parseTag_render {t : Tag} (h : Rfc3339.Spec.TagValid t) :
     parseTag t.critical (sx_tagBody t) = some t := by
   obtain ⟨hk, hne, hv⟩ := h
   have hkey : (sx_tagBody t).takeWhile (fun x => decide (x ≠ '=')) = t.key := by
@@ -197,7 +197,7 @@ theorem sx_parseTag_render {t : Tag} (h : Spec.TagValid t) :
   simp [hkok, hvok]
 
 theorem sx_parseZone_sound {b : List Char} {z : Zone} (h : parseZone b = some z) :
-    Spec.ZoneValid z ∧ b = Spec.renderZone z := by
+    Rfc3339.Spec.ZoneValid z ∧ b = Rfc3339.Spec.renderZone z := by
   unfold parseZone at h
   split at h
   · rename_i x
@@ -236,8 +236,8 @@ theorem sx_parseZone_sound {b : List Char} {z : Zone} (h : parseZone b = some z)
       rw [← sx_intercalate_eq, List.intercalate_splitOn]
     · simp at h
 
-theorem sx_parseZone_render {z : Zone} (h : Spec.ZoneValid z) :
-    parseZone (Spec.renderZone z) = some z := by
+theorem sx_parseZone_render {z : Zone} (h : Rfc3339.Spec.ZoneValid z) :
+    parseZone (Rfc3339.Spec.renderZone z) = some z := by
   cases z with
   | name parts =>
     obtain ⟨hne, hp⟩ := h
@@ -267,7 +267,7 @@ theorem sx_parseZone_render {z : Zone} (h : Spec.ZoneValid z) :
     obtain ⟨hz, hv⟩ := h
     have hvalid : o.isValid = true := (Rfc3339.Proofs.Valid.offset_isValid_iff o).mpr hv
     have hr := Rfc3339.Proofs.Format.parseOffset_render o hvalid
-    show parseZone (Spec.renderOffset o) = _
+    show parseZone (Rfc3339.Spec.renderOffset o) = _
     rw [← Rfc3339.Proofs.Format.offset_render_eq]
     cases o with
     | z => exact absurd rfl hz
@@ -283,11 +283,11 @@ theorem sx_parseZone_render {z : Zone} (h : Spec.ZoneValid z) :
       simp only [hr, hvalid, ↓reduceIte]
 
 
-theorem sx_digits_ne {k n : Nat} {c : Char} (h : c ∈ Spec.digits k n) : c ≠ ']' ∧ c ≠ '=' := by
+theorem sx_digits_ne {k n : Nat} {c : Char} (h : c ∈ Rfc3339.Spec.digits k n) : c ≠ ']' ∧ c ≠ '=' := by
   have key : ∀ d ∈ "0123456789?".toList, d ≠ ']' ∧ d ≠ '=' := by decide
   exact key c (sx_digits_mem h)
 
-theorem sx_tagBody_facts {t : Tag} (h : Spec.TagValid t) :
+theorem sx_tagBody_facts {t : Tag} (h : Rfc3339.Spec.TagValid t) :
     ']' ∉ sx_tagBody t ∧ (sx_tagBody t).head? ≠ some '!' ∧ '=' ∈ sx_tagBody t := by
   obtain ⟨hk, hne, hv⟩ := h
   refine ⟨?_, ?_, ?_⟩
@@ -304,8 +304,8 @@ theorem sx_tagBody_facts {t : Tag} (h : Spec.TagValid t) :
   · unfold sx_tagBody
     simp
 
-theorem sx_zoneBody_facts {z : Zone} (h : Spec.ZoneValid z) :
-    ']' ∉ Spec.renderZone z ∧ (Spec.renderZone z).head? ≠ some '!' ∧ '=' ∉ Spec.renderZone z := by
+theorem sx_zoneBody_facts {z : Zone} (h : Rfc3339.Spec.ZoneValid z) :
+    ']' ∉ Rfc3339.Spec.renderZone z ∧ (Rfc3339.Spec.renderZone z).head? ≠ some '!' ∧ '=' ∉ Rfc3339.Spec.renderZone z := by
   cases z with
   | name parts =>
     obtain ⟨hne, hp⟩ := h
@@ -327,16 +327,16 @@ theorem sx_zoneBody_facts {z : Zone} (h : Spec.ZoneValid z) :
     cases o with
     | z => exact absurd rfl hz
     | plus a m =>
-      refine ⟨fun hm => ?_, by simp [Spec.renderZone, Spec.renderOffset], fun hm => ?_⟩ <;>
-      · simp only [Spec.renderZone, Spec.renderOffset, List.mem_append] at hm
+      refine ⟨fun hm => ?_, by simp [Rfc3339.Spec.renderZone, Rfc3339.Spec.renderOffset], fun hm => ?_⟩ <;>
+      · simp only [Rfc3339.Spec.renderZone, Rfc3339.Spec.renderOffset, List.mem_append] at hm
         rcases hm with ((h | h) | h) | h <;>
           first
             | exact absurd h (by decide)
             | exact (sx_digits_ne h).1 rfl
             | exact (sx_digits_ne h).2 rfl
     | minus a m =>
-      refine ⟨fun hm => ?_, by simp [Spec.renderZone, Spec.renderOffset], fun hm => ?_⟩ <;>
-      · simp only [Spec.renderZone, Spec.renderOffset, List.mem_append] at hm
+      refine ⟨fun hm => ?_, by simp [Rfc3339.Spec.renderZone, Rfc3339.Spec.renderOffset], fun hm => ?_⟩ <;>
+      · simp only [Rfc3339.Spec.renderZone, Rfc3339.Spec.renderOffset, List.mem_append] at hm
         rcases hm with ((h | h) | h) | h <;>
           first
             | exact absurd h (by decide)
@@ -346,14 +346,14 @@ theorem sx_zoneBody_facts {z : Zone} (h : Spec.ZoneValid z) :
 theorem sx_suffixItems_cons (f : Nat) (c : Bool) (b R : List Char) (hb : ']' ∉ b)
     (hh : b.head? ≠ some '!') :
     suffixItems (f + 1) (sx_item c b ++ R) = (suffixItems f R).map (fun tail => (c, b) :: tail) := by
-  have hB : ∀ x ∈ Spec.renderFlag c ++ b, decide (x ≠ ']') = true := by
+  have hB : ∀ x ∈ Rfc3339.Spec.renderFlag c ++ b, decide (x ≠ ']') = true := by
     intro x hx
     simp only [decide_eq_true_eq]
     rintro rfl
     rcases List.mem_append.mp hx with h | h
-    · cases c <;> simp [Spec.renderFlag] at h
+    · cases c <;> simp [Rfc3339.Spec.renderFlag] at h
     · exact hb h
-  have e1 : sx_item c b ++ R = '[' :: ((Spec.renderFlag c ++ b) ++ ']' :: R) := by simp [sx_item]
+  have e1 : sx_item c b ++ R = '[' :: ((Rfc3339.Spec.renderFlag c ++ b) ++ ']' :: R) := by simp [sx_item]
   rw [e1]
   simp only [suffixItems, ↓reduceIte]
   rw [sx_takeWhile_append _ _ _ hB (by simp), List.drop_left]
@@ -365,7 +365,7 @@ theorem sx_suffixItems_cons (f : Nat) (c : Bool) (b R : List Char) (hb : ']' ∉
     cases hs : suffixItems f R with
     | none => rfl
     | some tail =>
-      simp only [Spec.renderFlag, Bool.false_eq_true, ↓reduceIte, List.nil_append, Option.map_some]
+      simp only [Rfc3339.Spec.renderFlag, Bool.false_eq_true, ↓reduceIte, List.nil_append, Option.map_some]
       split
       · simp at hh
       · rfl
@@ -424,20 +424,20 @@ theorem sx_suffixItems_sound (fuel : Nat) (cs : List Char) (items : List (Bool �
             subst h2
             rw [hbody] at hr
             subst hr
-            simp [sx_item, Spec.renderFlag]
+            simp [sx_item, Rfc3339.Spec.renderFlag]
           · simp only [pure, Option.some.injEq] at h2
             subst h2
             obtain ⟨B, hB⟩ : ∃ B, List.takeWhile (fun x => decide (x ≠ ']')) rest = B := ⟨_, rfl⟩
             rw [hB] at hr ⊢
             subst hr
-            simp [sx_item, Spec.renderFlag]
+            simp [sx_item, Rfc3339.Spec.renderFlag]
         · simp at h
       · simp at h
 
 
 theorem sx_mapM_sound (rest : List (Bool × List Char)) (tags : List Tag)
     (h : rest.mapM (fun (c, b) => parseTag c b) = some tags) :
-    (∀ t ∈ tags, Spec.TagValid t) ∧ rest = tags.map (fun t => (t.critical, sx_tagBody t)) := by
+    (∀ t ∈ tags, Rfc3339.Spec.TagValid t) ∧ rest = tags.map (fun t => (t.critical, sx_tagBody t)) := by
   induction rest generalizing tags with
   | nil =>
     simp only [List.mapM_nil, pure, Option.some.injEq] at h
@@ -455,7 +455,7 @@ theorem sx_mapM_sound (rest : List (Bool × List Char)) (tags : List Tag)
     · exact htv
     · exact hv u hu
 
-theorem sx_mapM_render (tags : List Tag) (h : ∀ t ∈ tags, Spec.TagValid t) :
+theorem sx_mapM_render (tags : List Tag) (h : ∀ t ∈ tags, Rfc3339.Spec.TagValid t) :
     (tags.map (fun t => (t.critical, sx_tagBody t))).mapM (fun (c, b) => parseTag c b) =
       some tags := by
   induction tags with
@@ -468,26 +468,26 @@ theorem sx_mapM_render (tags : List Tag) (h : ∀ t ∈ tags, Spec.TagValid t) :
 /-- The items of a suffix: the time zone, if any, then the tags. -/
 def sx_items (e : Ext) : List (Bool × List Char) :=
   (match e.zone with
-   | some (c, z) => [(c, Spec.renderZone z)]
+   | some (c, z) => [(c, Rfc3339.Spec.renderZone z)]
    | none => []) ++ e.tags.map (fun t => (t.critical, sx_tagBody t))
 
-theorem sx_renderTag_eq (t : Tag) : Spec.renderTag t = sx_item t.critical (sx_tagBody t) := by
-  simp [Spec.renderTag, sx_item, sx_tagBody]
+theorem sx_renderTag_eq (t : Tag) : Rfc3339.Spec.renderTag t = sx_item t.critical (sx_tagBody t) := by
+  simp [Rfc3339.Spec.renderTag, sx_item, sx_tagBody]
 
 theorem sx_renderSuffix_items (e : Ext) :
-    Spec.renderSuffix e = (sx_items e).flatMap (fun p => sx_item p.1 p.2) := by
+    Rfc3339.Spec.renderSuffix e = (sx_items e).flatMap (fun p => sx_item p.1 p.2) := by
   obtain ⟨stamp, zone, tags⟩ := e
-  have htags : (tags.map Spec.renderTag).flatten =
+  have htags : (tags.map Rfc3339.Spec.renderTag).flatten =
       (tags.map (fun t => (t.critical, sx_tagBody t))).flatMap (fun p => sx_item p.1 p.2) := by
     induction tags with
     | nil => rfl
     | cons t ts ih => simp only [List.map_cons, List.flatten_cons, List.flatMap_cons, ih, sx_renderTag_eq]
   rcases zone with _ | ⟨c, z⟩
-  · simp only [Spec.renderSuffix, sx_items, List.nil_append, htags]
-  · simp only [Spec.renderSuffix, sx_items, htags, List.singleton_append, List.flatMap_cons, sx_item]
+  · simp only [Rfc3339.Spec.renderSuffix, sx_items, List.nil_append, htags]
+  · simp only [Rfc3339.Spec.renderSuffix, sx_items, htags, List.singleton_append, List.flatMap_cons, sx_item]
 
-theorem sx_items_facts (e : Ext) (hz : ∀ c z, e.zone = some (c, z) → Spec.ZoneValid z)
-    (ht : ∀ t ∈ e.tags, Spec.TagValid t) :
+theorem sx_items_facts (e : Ext) (hz : ∀ c z, e.zone = some (c, z) → Rfc3339.Spec.ZoneValid z)
+    (ht : ∀ t ∈ e.tags, Rfc3339.Spec.TagValid t) :
     ∀ p ∈ sx_items e, ']' ∉ p.2 ∧ p.2.head? ≠ some '!' := by
   obtain ⟨stamp, zone, tags⟩ := e
   intro p hp
@@ -503,11 +503,11 @@ theorem sx_items_facts (e : Ext) (hz : ∀ c z, e.zone = some (c, z) → Spec.Zo
     exact ⟨this.1, this.2.1⟩
 
 /-- `parseSuffix` reads exactly the suffixes of the grammar, as
-    `Spec.renderSuffix` writes them. -/
+    `Rfc3339.Spec.renderSuffix` writes them. -/
 theorem parseSuffix_iff (cs : List Char) (e : Ext) :
     parseSuffix cs = some (e.zone, e.tags) ↔
-      ((∀ c z, e.zone = some (c, z) → Spec.ZoneValid z) ∧ ∀ t ∈ e.tags, Spec.TagValid t) ∧
-        cs = Spec.renderSuffix e := by
+      ((∀ c z, e.zone = some (c, z) → Rfc3339.Spec.ZoneValid z) ∧ ∀ t ∈ e.tags, Rfc3339.Spec.TagValid t) ∧
+        cs = Rfc3339.Spec.renderSuffix e := by
   constructor
   · intro h
     unfold parseSuffix at h
@@ -561,15 +561,15 @@ theorem parseSuffix_iff (cs : List Char) (e : Ext) :
       | nil => rfl
       | cons t ts =>
         have htv := ht t (by simp)
-        have hts : ∀ u ∈ ts, Spec.TagValid u := fun u hu => ht u (List.mem_cons_of_mem _ hu)
+        have hts : ∀ u ∈ ts, Rfc3339.Spec.TagValid u := fun u hu => ht u (List.mem_cons_of_mem _ hu)
         have hc : (sx_tagBody t).contains '=' = true :=
           List.contains_iff_mem.mpr (sx_tagBody_facts htv).2.2
         simp only [sx_items, List.nil_append, List.map_cons, Option.bind_eq_bind, Option.bind_some]
         simp only [Option.bind_some, sx_mapM_render ts hts, hc, ↓reduceIte, sx_parseTag_render htv]
         rfl
     · have hzv := hz c z rfl
-      have hc : (Spec.renderZone z).contains '=' = false := by
-        cases h : (Spec.renderZone z).contains '=' with
+      have hc : (Rfc3339.Spec.renderZone z).contains '=' = false := by
+        cases h : (Rfc3339.Spec.renderZone z).contains '=' with
         | false => rfl
         | true => exact absurd (List.contains_iff_mem.mp h) (sx_zoneBody_facts hzv).2.2
       simp only [sx_items, List.singleton_append]
@@ -578,16 +578,16 @@ theorem parseSuffix_iff (cs : List Char) (e : Ext) :
       rfl
 
 /-- The code's rendering of the suffix is the spec's. -/
-theorem renderSuffix_eq (e : Ext) (h : ∀ c z, e.zone = some (c, z) → Spec.ZoneValid z) :
-    e.renderSuffix = Spec.renderSuffix e := by
+theorem renderSuffix_eq (e : Ext) (h : ∀ c z, e.zone = some (c, z) → Rfc3339.Spec.ZoneValid z) :
+    e.renderSuffix = Rfc3339.Spec.renderSuffix e := by
   obtain ⟨stamp, zone, tags⟩ := e
-  have hz : ∀ z : Zone, z.render = Spec.renderZone z := by
+  have hz : ∀ z : Zone, z.render = Rfc3339.Spec.renderZone z := by
     intro z
     cases z with
     | name parts => rfl
     | offset o => exact Rfc3339.Proofs.Format.offset_render_eq o
-  have ht : (Tag.render : Tag → List Char) = Spec.renderTag := funext fun t => rfl
-  simp only [Ext.renderSuffix, Spec.renderSuffix, List.flatMap_def, ht]
+  have ht : (Tag.render : Tag → List Char) = Rfc3339.Spec.renderTag := funext fun t => rfl
+  simp only [Ext.renderSuffix, Rfc3339.Spec.renderSuffix, List.flatMap_def, ht]
   rcases zone with _ | ⟨c, z⟩
   · rfl
   · simp only [hz]
@@ -597,13 +597,13 @@ theorem renderSuffix_eq (e : Ext) (h : ∀ c z, e.zone = some (c, z) → Spec.Zo
     other `[` than at the start of each item; in particular a rendered
     suffix starts with `[` when it is not empty. -/
 theorem renderSuffix_head (e : Ext) :
-    Spec.renderSuffix e = [] ∨ (Spec.renderSuffix e).head? = some '[' := by
+    Rfc3339.Spec.renderSuffix e = [] ∨ (Rfc3339.Spec.renderSuffix e).head? = some '[' := by
   obtain ⟨stamp, zone, tags⟩ := e
   rcases zone with _ | ⟨c, z⟩
   · cases tags with
     | nil => left; rfl
-    | cons t ts => right; simp [Spec.renderSuffix, Spec.renderTag]
+    | cons t ts => right; simp [Rfc3339.Spec.renderSuffix, Rfc3339.Spec.renderTag]
   · right
-    simp [Spec.renderSuffix]
+    simp [Rfc3339.Spec.renderSuffix]
 
 end Rfc3339.Proofs.Ixdtf

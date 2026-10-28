@@ -1,10 +1,10 @@
 /-
   What a timestamp is: the values the parser produces and the printer
-  takes. Part of the approved specification, with `Spec.lean` and
+  takes. Part of the approved specification, with `Rfc3339/Spec.lean` and
   `Spec/Defs.lean`, since every statement is about these types.
 
   A value holds each field of an RFC 3339 `date-time` as a number,
-  exactly as written. Which values are valid is `Spec.Valid`, in
+  exactly as written. Which values are valid is `Rfc3339.Spec.Valid`, in
   `Spec/Defs.lean`.
 -/
 

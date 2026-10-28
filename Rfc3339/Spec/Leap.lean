@@ -2,12 +2,12 @@
   The definitions the leap second statements use: the table of leap
   seconds and TAI − UTC as tzdata's `leap-seconds.list` publishes it,
   from IERS Bulletin C, and section 5.7 of RFC 3339 with that table.
-  Part of the approved specification, with `Spec.lean` and
+  Part of the approved specification, with `Rfc3339/Spec.lean` and
   `Spec/Defs.lean`, and written independently of the code in
   `Rfc3339/`.
 -/
 
-import Spec.Defs
+import Rfc3339.Spec.Defs
 
 open Rfc3339
 
@@ -62,7 +62,7 @@ been added to UTC)".
 -/
 
 /-- The table, line for line: NTP time, and TAI − UTC from then on. -/
-def Spec.leapTable : List (Nat × Nat) :=
+def Rfc3339.Spec.leapTable : List (Nat × Nat) :=
   [(2272060800, 10), (2287785600, 11), (2303683200, 12), (2335219200, 13),
    (2366755200, 14), (2398291200, 15), (2429913600, 16), (2461449600, 17),
    (2492985600, 18), (2524521600, 19), (2571782400, 20), (2603318400, 21),
@@ -74,9 +74,9 @@ def Spec.leapTable : List (Nat × Nat) :=
 /-- NTP time from Unix seconds: NTP counts from 1900-01-01T00:00:00Z,
     70 years of 86400-second days, 17 of them leap years, before the
     Unix epoch. -/
-def Spec.ntpOfUnix (u : Int) : Int := u + (70 * 365 + 17) * 86400
+def Rfc3339.Spec.ntpOfUnix (u : Int) : Int := u + (70 * 365 + 17) * 86400
 
-example : Spec.ntpOfUnix 0 = 2208988800 := by decide
+example : Rfc3339.Spec.ntpOfUnix 0 = 2208988800 := by decide
 
 /-! ## Section 5.7, with the table
 
@@ -89,41 +89,41 @@ as the start of the next minute, are those of a line after the first.
 /-- `t` names one of the table's leap seconds: its second is 60, and the
     time just after it, in NTP time, is that of a line of the table
     after the first. -/
-def Spec.TableLeapSecond (t : Timestamp) : Prop :=
-  t.second = 60 ∧ ∃ e ∈ Spec.leapTable.tail, Spec.ntpOfUnix (Spec.unixSeconds t) = e.1
+def Rfc3339.Spec.TableLeapSecond (t : Timestamp) : Prop :=
+  t.second = 60 ∧ ∃ e ∈ Rfc3339.Spec.leapTable.tail, Rfc3339.Spec.ntpOfUnix (Rfc3339.Spec.unixSeconds t) = e.1
 
-/-- Valid, by section 5.7 with the table: as `Spec.Valid`, and second 60
+/-- Valid, by section 5.7 with the table: as `Rfc3339.Spec.Valid`, and second 60
     only at a leap second of the table. -/
-def Spec.ValidKnown (t : Timestamp) : Prop :=
-  Spec.Valid t ∧ (t.second = 60 → Spec.TableLeapSecond t)
+def Rfc3339.Spec.ValidKnown (t : Timestamp) : Prop :=
+  Rfc3339.Spec.Valid t ∧ (t.second = 60 → Rfc3339.Spec.TableLeapSecond t)
 
 /-! ## SI seconds and TAI − UTC -/
 
 /-- The place of a timestamp's whole second in UTC order: its UTC minute
-    and its second, with 61 places to a minute, as `Spec.instantKey`
+    and its second, with 61 places to a minute, as `Rfc3339.Spec.instantKey`
     with no fraction. -/
-def Spec.secondKey (t : Timestamp) : Int := Spec.utcMinute t * 61 + t.second
+def Rfc3339.Spec.secondKey (t : Timestamp) : Int := Rfc3339.Spec.utcMinute t * 61 + t.second
 
 /-- The same place for the leap second just before NTP time `ntp`:
     second 60 of the minute before it. -/
-def Spec.leapSecondKey (ntp : Nat) : Int :=
-  (((ntp : Int) - Spec.ntpOfUnix 0) / 60 + ((Spec.dayNumber 1970 1 1 * 1440 : Nat) : Int) - 1) * 61 + 60
+def Rfc3339.Spec.leapSecondKey (ntp : Nat) : Int :=
+  (((ntp : Int) - Rfc3339.Spec.ntpOfUnix 0) / 60 + ((Rfc3339.Spec.dayNumber 1970 1 1 * 1440 : Nat) : Int) - 1) * 61 + 60
 
 /-- How many leap seconds of the table come before the second `t` falls
     in. -/
-def Spec.leapsBefore (t : Timestamp) : Nat :=
-  (Spec.leapTable.tail.filter fun e => Spec.leapSecondKey e.1 < Spec.secondKey t).length
+def Rfc3339.Spec.leapsBefore (t : Timestamp) : Nat :=
+  (Rfc3339.Spec.leapTable.tail.filter fun e => Rfc3339.Spec.leapSecondKey e.1 < Rfc3339.Spec.secondKey t).length
 
 /-- SI seconds from 1972-01-01T00:00:00Z to `t`, without its fraction:
     the Unix seconds between them, which count 86400 to every day, and
     one more for each leap second of the table between them. -/
-def Spec.siSeconds (t : Timestamp) : Int :=
-  Spec.unixSeconds t - Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ + Spec.leapsBefore t
+def Rfc3339.Spec.siSeconds (t : Timestamp) : Int :=
+  Rfc3339.Spec.unixSeconds t - Rfc3339.Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ + Rfc3339.Spec.leapsBefore t
 
 /-- TAI − UTC at NTP time `ntp`: the value on the table's last line at
     or before it. -/
-def Spec.taiMinusUtcAt (ntp : Int) : Nat :=
-  ((Spec.leapTable.filter fun e => (e.1 : Int) ≤ ntp).getLast?.map (·.2)).getD 0
+def Rfc3339.Spec.taiMinusUtcAt (ntp : Int) : Nat :=
+  ((Rfc3339.Spec.leapTable.filter fun e => (e.1 : Int) ≤ ntp).getLast?.map (·.2)).getD 0
 
-example : Spec.taiMinusUtcAt 2272060800 = 10 ∧ Spec.taiMinusUtcAt 3692217599 = 36 ∧
-    Spec.taiMinusUtcAt 3692217600 = 37 := by decide
+example : Rfc3339.Spec.taiMinusUtcAt 2272060800 = 10 ∧ Rfc3339.Spec.taiMinusUtcAt 3692217599 = 36 ∧
+    Rfc3339.Spec.taiMinusUtcAt 3692217600 = 37 := by decide

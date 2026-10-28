@@ -1,6 +1,6 @@
 # Specification: rfc
 
-This library reads and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`. It also gives the instant a timestamp names, as whole seconds since 1970-01-01T00:00:00Z, and puts two timestamps in order by instant. It reads and writes the extended form of RFC 9557, with a time zone and tags after the timestamp. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, `Rfc3339/Types.lean`, `Spec/Leap.lean`, `Spec/Ixdtf.lean`, `Rfc3339/IxdtfTypes.lean`, and the other files `bar.toml` lists.
+This library reads and writes RFC 3339 timestamps, such as `1985-04-12T23:20:50.52Z`. It also gives the instant a timestamp names, as whole seconds since 1970-01-01T00:00:00Z, and puts two timestamps in order by instant. It reads and writes the extended form of RFC 9557, with a time zone and tags after the timestamp. A reviewer who did not write this specification approves it. The approval also covers `Rfc3339/Spec.lean`, `Rfc3339/Spec/Defs.lean`, `Rfc3339/Types.lean`, `Rfc3339/Spec/Leap.lean`, `Rfc3339/Spec/Ixdtf.lean`, `Rfc3339/IxdtfTypes.lean`, and the other files `bar.toml` lists.
 
 ## The format
 
@@ -18,7 +18,7 @@ time-offset = "Z" / ("+" / "-") time-hour ":" time-minute
 - Every field has exactly the number of digits the grammar gives. A digit is an ASCII digit, `0` to `9`. The parser rejects digits from other scripts, such as `٣` and `０`.
 - The year runs from 0000 to 9999 and the month from 01 to 12. The day runs from 01 to the length of its month, as in the table of section 5.7. February has 29 days in a leap year and 28 otherwise. A leap year is one divisible by 4, unless it is divisible by 100 and not by 400 (Appendix C).
 - The hour runs from 00 to 23 and the minute from 00 to 59. The second runs from 00 to 59. It may be 60 only for a leap second, which section 5.7 places at the end of a month in UTC. With the offset applied, the time must be 23:59 UTC on the last day of a month. Because the leap second is shifted by the offset, `1990-12-31T15:59:60-08:00` is the same leap second as `1990-12-31T23:59:60Z`.
-- Section 5.7 allows second 60 only at the end of months in which a leap second occurs. `isValid` and `parse` use no table of them, so they allow second 60 at the end of every month, which is more than section 5.7 allows; `isValidKnown`, below, checks it against the table. It also allows second 59 everywhere, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened. `Spec.Valid` states the rule as this library applies it.
+- Section 5.7 allows second 60 only at the end of months in which a leap second occurs. `isValid` and `parse` use no table of them, so they allow second 60 at the end of every month, which is more than section 5.7 allows; `isValidKnown`, below, checks it against the table. It also allows second 59 everywhere, although section 5.7 makes 58 the last second of a month after a negative leap second, which has never happened. `Rfc3339.Spec.Valid` states the rule as this library applies it.
 - The fraction is optional. When present it is a point and at least one digit, with no upper limit on the digits. The parser keeps every digit as written.
 - The offset is `Z`, `+hh:mm` or `-hh:mm`, with hours from 00 to 23 and minutes from 00 to 59. Section 4.3 gives `-00:00` its own meaning, an unknown local offset. It is therefore kept apart from `+00:00` and from `Z`, although all three name the same instant.
 - The note under the grammar lets `T` and `Z` be written in lower case. The parser accepts `t` and `z`, and printing writes upper case.
@@ -32,7 +32,7 @@ time-offset = "Z" / ("+" / "-") time-hour ":" time-minute
 
 ## The value
 
-`parse` returns a `Timestamp`: the year, month, day, hour, minute and second as numbers, the fraction as a list of digits, and the offset (`Z`, plus, or minus, with hours and minutes). The fields are those of the string as written, in its local time. `Spec.Valid` says which values the rules above allow. `Timestamp.isValid` decides it for a value built some other way.
+`parse` returns a `Timestamp`: the year, month, day, hour, minute and second as numbers, the fraction as a list of digits, and the offset (`Z`, plus, or minus, with hours and minutes). The fields are those of the string as written, in its local time. `Rfc3339.Spec.Valid` says which values the rules above allow. `Timestamp.isValid` decides it for a value built some other way.
 
 `Timestamp.print` writes a valid timestamp in the form above, with `T` and `Z` in upper case.
 
@@ -52,18 +52,18 @@ Every second from `0000-01-01T00:00:00Z` (-62167219200) to `9999-12-31T23:59:59Z
 
 ## Leap seconds, with the table
 
-Section 5.7 allows second 60 only "at the end of months in which a leap second occurs". `isValid` cannot know those months; `isValidKnown` uses a table of them. The table is tzdata's `leap-seconds.list`, which publishes IERS Bulletin C. `Spec/Leap.lean` copies it line for line: 28 NTP times, from 1 January 1972 to 1 January 2017, each with TAI − UTC from that time on, 10 to 37 seconds. Each line after the first follows a leap second, the second `23:59:60` UTC just before it, so there have been 27. The file expires on 28 June 2027: until then, no leap second comes that it does not list.
+Section 5.7 allows second 60 only "at the end of months in which a leap second occurs". `isValid` cannot know those months; `isValidKnown` uses a table of them. The table is tzdata's `leap-seconds.list`, which publishes IERS Bulletin C. `Rfc3339/Spec/Leap.lean` copies it line for line: 28 NTP times, from 1 January 1972 to 1 January 2017, each with TAI − UTC from that time on, 10 to 37 seconds. Each line after the first follows a leap second, the second `23:59:60` UTC just before it, so there have been 27. The file expires on 28 June 2027: until then, no leap second comes that it does not list.
 
 - `isValidKnown` is `isValid`, with second 60 allowed only at one of the table's leap seconds. The instant is what counts, whatever the offset: `1990-12-31T15:59:60-08:00` is the leap second at the end of 1990, and `2017-01-01T00:59:60+01:00` the one at the end of 2016. `2015-12-31T23:59:60Z` is refused, since that leap second came at the end of June 2015.
 - `siSeconds` gives the Unix seconds from `1972-01-01T00:00:00Z`, ignoring the fraction, and one more for each leap second of the table before the timestamp. From 1972 on, those are the SI seconds between them. So `2016-12-31T23:59:59Z`, `2016-12-31T23:59:60Z` and `2017-01-01T00:00:00Z` get three numbers in a row, where Unix seconds give the last two the same one. On whole seconds valid by the table, these numbers are in the order of the instants, as `compareInstant` gives it.
 - `fromSiSeconds` goes back: from SI seconds to the UTC timestamp, a leap second as second 60. It gives one for every number from 0, `1972-01-01T00:00:00Z`, to that of `9999-12-31T23:59:59Z`, and `none` outside.
 - `taiMinusUtc` gives TAI − UTC: 10, and one more for each leap second before the timestamp. At every second from 1972 on, a leap second aside, it is the table's second column. During a leap second it is still the value from before it.
 
-Before 1972, UTC ran on seconds of varying length, with TAI − UTC not a whole number of seconds. There `siSeconds` is Unix seconds less 63072000, 86400 to a day, as `Spec.siSeconds_eq` says, which are not SI seconds, and `taiMinusUtc` gives 10, which means nothing. A leap second announced after the table's date would need a new table, in the spec and in the code, and a new approval.
+Before 1972, UTC ran on seconds of varying length, with TAI − UTC not a whole number of seconds. There `siSeconds` is Unix seconds less 63072000, 86400 to a day, as `Rfc3339.Spec.siSeconds_eq` says, which are not SI seconds, and `taiMinusUtc` gives 10, which means nothing. A leap second announced after the table's date would need a new table, in the spec and in the code, and a new approval.
 
 ## RFC 9557: time zones and tags
 
-RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. After the timestamp may come a suffix: a time zone in brackets, then tags in brackets. Each may be marked critical with `!`. An example is `1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]`. `Spec/Ixdtf.lean` quotes the grammar of section 4.1.
+RFC 9557, the Internet Extended Date/Time Format (IXDTF), updates RFC 3339. After the timestamp may come a suffix: a time zone in brackets, then tags in brackets. Each may be marked critical with `!`. An example is `1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]`. `Rfc3339/Spec/Ixdtf.lean` quotes the grammar of section 4.1.
 
 - The time zone is a name or a numeric offset:
   - A name is one or more parts joined by `/`. Each part starts with a letter, `.` or `_`, and goes on with letters, digits, `.`, `_`, `-` and `+`. It may not be `.` or `..`.
@@ -101,55 +101,55 @@ The command-line tool in `Main.lean` has two modes:
 - `rfc3339 check TIMESTAMP...` prints each timestamp's printed form and its Unix seconds, or `invalid`. It exits with 1 when any timestamp is invalid.
 - `rfc3339 serve` answers requests from the differential tests, one per line. Each string is sent as the hex digits of its UTF-8 bytes. The header comment of `Main.lean` gives the protocol.
 
-Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant`, `fromUnixSeconds`, `Timestamp.isValidKnown`, `Timestamp.siSeconds`, `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`, `Ext.lookup` and `Ext.erroneous`. The `known` request prints `-` for TAI − UTC before 1972. The `ixdtf` request judges each string with the example application of `Spec.exampleProcessor`, and gives the values of its first `u-ca` tag.
+Every answer comes from `parse`, `Timestamp.print`, `Timestamp.unixSeconds`, `Timestamp.compareInstant`, `fromUnixSeconds`, `Timestamp.isValidKnown`, `Timestamp.siSeconds`, `Timestamp.taiMinusUtc`, `fromSiSeconds`, `parseExt`, `Ext.print`, `Ext.lookup` and `Ext.erroneous`. The `known` request prints `-` for TAI − UTC before 1972. The `ixdtf` request judges each string with the example application of `Rfc3339.Spec.exampleProcessor`, and gives the values of its first `u-ca` tag.
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`, for the leap second table in `Spec/Leap.lean`, and for RFC 9557 in `Spec/Ixdtf.lean`. They are written from the RFC and checked against its tables and against known day counts.
+Each property is a theorem in `Rfc3339/Spec.lean`, under the name given. The definitions the statements use are in `Rfc3339/Spec/Defs.lean`, for the leap second table in `Rfc3339/Spec/Leap.lean`, and for RFC 9557 in `Rfc3339/Spec/Ixdtf.lean`. They are written from the RFC and checked against its tables and against known day counts.
 
 | Property | Theorem |
 |----------|---------|
-| `isValid` decides exactly `Spec.Valid`: the rules of sections 5.6 and 5.7, with second 60 allowed at the end of every month. | `Spec.isValid_iff` |
-| A valid timestamp prints as the grammar writes it. | `Spec.print_eq` |
-| `parse` returns `t` exactly when `t` is valid and the string is how `t` prints, with `T` and `Z` in either case. | `Spec.parse_iff` |
-| What `parse` returns is valid: the day exists in its month, a leap second ends a month in UTC, and so on. | `Spec.parse_valid` |
-| Printing then parsing gives the timestamp back. | `Spec.parse_print` |
-| Parsing then printing gives the string back, with `T` and `Z` in upper case. | `Spec.print_parse` |
-| `unixSeconds` counts the seconds from the epoch by the calendar, with the offset applied. | `Spec.unixSeconds_eq` |
-| `compareInstant` orders timestamps by the instants they name: UTC minute, then second, then fraction. | `Spec.compareInstant_eq` |
-| The examples of section 5.8 parse to the fields the RFC reads them as. | `Spec.rfc3339_examples` |
-| What section 5.8 says about those examples holds: two pairs name the same instant. Separately, the first is 482196050 seconds after the epoch, as Python's `calendar.timegm` gives. | `Spec.rfc3339_example_instants` |
-| A leap second comes after second 59 and before the next minute; its Unix seconds equal those of the next second. | `Spec.leap_second_order` |
-| Days outside their month are rejected, with the leap year rule of Appendix C. | `Spec.calendar_vectors` |
-| Second 60 is accepted only at the end of a month in UTC. | `Spec.leap_second_vectors` |
-| Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Spec.syntax_vectors` |
-| `fromUnixSeconds s` is `t` exactly when `t` is valid, in UTC, with no fraction and a second of at most 59, and names `s`. | `Spec.fromUnixSeconds_iff` |
-| `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z. | `Spec.fromUnixSeconds_isSome` |
-| 0096-12-31 at midnight, the epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
-| `isValidKnown` decides `Spec.ValidKnown`: `Spec.Valid`, with second 60 only at a leap second of the table. | `Spec.isValidKnown_iff` |
-| `siSeconds` is Unix seconds since 1972 and one more for each leap second of the table before the timestamp. | `Spec.siSeconds_eq` |
-| On whole seconds valid by the table, `siSeconds` gives the order of the instants. | `Spec.siSeconds_order` |
-| `fromSiSeconds n` is `t` exactly when `t` is in UTC, with no fraction, valid by the table, from 1972 on, and has SI seconds `n`; it gives one for every second from 1972 to 9999. | `Spec.fromSiSeconds_iff`, `Spec.fromSiSeconds_isSome` |
-| `taiMinusUtc` is 10 and one more for each leap second of the table before the timestamp. | `Spec.taiMinusUtc_leapsBefore` |
-| TAI − UTC from 1972 on, at each second but a leap second, is the table's value. | `Spec.taiMinusUtc_eq` |
-| Leap seconds of the table and months without one; SI seconds and TAI − UTC around the first and the last; the round trip Unix seconds lose. | `Spec.leap_table_vectors` |
-| `parseExt s` is `e` exactly when `e` is valid by the RFC 9557 grammar and `s` is a timestamp `parse` reads as `e`'s, then `e`'s suffix as the grammar writes it. | `Spec.parseExt_iff` |
-| A valid `Ext` prints as the grammar writes it. | `Spec.printExt_eq` |
-| Printing then parsing gives a valid `Ext` back. | `Spec.parseExt_print` |
-| A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Spec.parseExt_plain` |
-| `lookup` gives the first tag with the key. | `Spec.lookup_iff` |
-| `erroneous` decides `Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Spec.erroneous_iff` |
-| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; strings the grammar refuses are not read. | `Spec.ixdtf_vectors` |
+| `isValid` decides exactly `Rfc3339.Spec.Valid`: the rules of sections 5.6 and 5.7, with second 60 allowed at the end of every month. | `Rfc3339.Spec.isValid_iff` |
+| A valid timestamp prints as the grammar writes it. | `Rfc3339.Spec.print_eq` |
+| `parse` returns `t` exactly when `t` is valid and the string is how `t` prints, with `T` and `Z` in either case. | `Rfc3339.Spec.parse_iff` |
+| What `parse` returns is valid: the day exists in its month, a leap second ends a month in UTC, and so on. | `Rfc3339.Spec.parse_valid` |
+| Printing then parsing gives the timestamp back. | `Rfc3339.Spec.parse_print` |
+| Parsing then printing gives the string back, with `T` and `Z` in upper case. | `Rfc3339.Spec.print_parse` |
+| `unixSeconds` counts the seconds from the epoch by the calendar, with the offset applied. | `Rfc3339.Spec.unixSeconds_eq` |
+| `compareInstant` orders timestamps by the instants they name: UTC minute, then second, then fraction. | `Rfc3339.Spec.compareInstant_eq` |
+| The examples of section 5.8 parse to the fields the RFC reads them as. | `Rfc3339.Spec.rfc3339_examples` |
+| What section 5.8 says about those examples holds: two pairs name the same instant. Separately, the first is 482196050 seconds after the epoch, as Python's `calendar.timegm` gives. | `Rfc3339.Spec.rfc3339_example_instants` |
+| A leap second comes after second 59 and before the next minute; its Unix seconds equal those of the next second. | `Rfc3339.Spec.leap_second_order` |
+| Days outside their month are rejected, with the leap year rule of Appendix C. | `Rfc3339.Spec.calendar_vectors` |
+| Second 60 is accepted only at the end of a month in UTC. | `Rfc3339.Spec.leap_second_vectors` |
+| Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Rfc3339.Spec.syntax_vectors` |
+| `fromUnixSeconds s` is `t` exactly when `t` is valid, in UTC, with no fraction and a second of at most 59, and names `s`. | `Rfc3339.Spec.fromUnixSeconds_iff` |
+| `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z. | `Rfc3339.Spec.fromUnixSeconds_isSome` |
+| 0096-12-31 at midnight, the epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Rfc3339.Spec.fromUnixSeconds_vectors` |
+| `isValidKnown` decides `Rfc3339.Spec.ValidKnown`: `Rfc3339.Spec.Valid`, with second 60 only at a leap second of the table. | `Rfc3339.Spec.isValidKnown_iff` |
+| `siSeconds` is Unix seconds since 1972 and one more for each leap second of the table before the timestamp. | `Rfc3339.Spec.siSeconds_eq` |
+| On whole seconds valid by the table, `siSeconds` gives the order of the instants. | `Rfc3339.Spec.siSeconds_order` |
+| `fromSiSeconds n` is `t` exactly when `t` is in UTC, with no fraction, valid by the table, from 1972 on, and has SI seconds `n`; it gives one for every second from 1972 to 9999. | `Rfc3339.Spec.fromSiSeconds_iff`, `Rfc3339.Spec.fromSiSeconds_isSome` |
+| `taiMinusUtc` is 10 and one more for each leap second of the table before the timestamp. | `Rfc3339.Spec.taiMinusUtc_leapsBefore` |
+| TAI − UTC from 1972 on, at each second but a leap second, is the table's value. | `Rfc3339.Spec.taiMinusUtc_eq` |
+| Leap seconds of the table and months without one; SI seconds and TAI − UTC around the first and the last; the round trip Unix seconds lose. | `Rfc3339.Spec.leap_table_vectors` |
+| `parseExt s` is `e` exactly when `e` is valid by the RFC 9557 grammar and `s` is a timestamp `parse` reads as `e`'s, then `e`'s suffix as the grammar writes it. | `Rfc3339.Spec.parseExt_iff` |
+| A valid `Ext` prints as the grammar writes it. | `Rfc3339.Spec.printExt_eq` |
+| Printing then parsing gives a valid `Ext` back. | `Rfc3339.Spec.parseExt_print` |
+| A string with no `[` reads as `parse` reads it, with no time zone and no tags. | `Rfc3339.Spec.parseExt_plain` |
+| `lookup` gives the first tag with the key. | `Rfc3339.Spec.lookup_iff` |
+| `erroneous` decides `Rfc3339.Spec.MustReject`: the rules of sections 3.2 to 3.4, for any application. | `Rfc3339.Spec.erroneous_iff` |
+| Every example of RFC 9557 is read, and is erroneous for the example application exactly where the RFC says; so are critical zones that agree with the offset and a critical `-00:00` zone that does not; strings the grammar refuses are not read. | `Rfc3339.Spec.ixdtf_vectors` |
 
 Together, these fix every output for valid input.
 
 - `parse` is fixed for every string.
 - `print`, `unixSeconds` and `compareInstant` are fixed for every valid timestamp. The parser gives only valid timestamps.
-- `fromUnixSeconds` is fixed for every number, by `Spec.fromUnixSeconds_iff` and `Spec.fromUnixSeconds_isSome`, and `fromSiSeconds` likewise by its two statements.
+- `fromUnixSeconds` is fixed for every number, by `Rfc3339.Spec.fromUnixSeconds_iff` and `Rfc3339.Spec.fromUnixSeconds_isSome`, and `fromSiSeconds` likewise by its two statements.
 - `parseExt` is fixed for every string, `Ext.print` for every valid `Ext`, `Ext.lookup` for every `Ext` and key, and `Ext.erroneous` for every application and `Ext`.
-- `isValidKnown` is fixed for every timestamp, and `siSeconds` for every valid one. `taiMinusUtc` is fixed for every valid timestamp, by `Spec.taiMinusUtc_leapsBefore`, and agrees with the table's column from 1972 on but at a leap second.
-- A parser that accepted nothing would meet `Spec.parse_valid`, but it would fail `Spec.parse_iff` and `Spec.parse_print`.
-- A parser that accepted too much would fail `Spec.parse_iff`.
+- `isValidKnown` is fixed for every timestamp, and `siSeconds` for every valid one. `taiMinusUtc` is fixed for every valid timestamp, by `Rfc3339.Spec.taiMinusUtc_leapsBefore`, and agrees with the table's column from 1972 on but at a leap second.
+- A parser that accepted nothing would meet `Rfc3339.Spec.parse_valid`, but it would fail `Rfc3339.Spec.parse_iff` and `Rfc3339.Spec.parse_print`.
+- A parser that accepted too much would fail `Rfc3339.Spec.parse_iff`.
 
 ## Oracle
 
@@ -162,26 +162,29 @@ The differential tests compare the tool with these oracles:
 
 ## Follow-up verification record
 
-`Rfc3339.Proofs.Leap.leapKey_table` in `Proofs/Leap/Table.lean`
+`Rfc3339.Proofs.Leap.leapKey_table` in `Rfc3339/Proofs/Leap/Table.lean`
 proves that the implementation's ordered list of leap-second keys equals
-the keys derived from `Spec.leapTable.tail`. `Spec.isValidKnown_iff` uses
-that equality. The literal table's agreement with IERS remains trusted.
+the keys derived from `Rfc3339.Spec.leapTable.tail`.
+`Rfc3339.Spec.isValidKnown_iff` uses that equality. The literal table's
+agreement with IERS remains trusted.
 
 Before the table expires on 28 June 2027, obtain the current IERS Bulletin C
-and tzdata leap-seconds.list, compare the literal table in `Spec/Leap.lean`,
-and update its source and expiry record. If an entry changes, update
-`Rfc3339/Leap.lean` in the same change, rebuild the table equality proof,
-and rerun the full bar and differential suite. Have a spec reviewer check
-the replacement source. Expiry alone does not announce a leap second.
+and tzdata leap-seconds.list, compare the literal table in
+`Rfc3339/Spec/Leap.lean`, and update its source and expiry record. If an
+entry changes, update `Rfc3339/Leap.lean` in the same change, rebuild the
+table equality proof, and rerun the full bar and differential suite. Have a
+spec reviewer check the replacement source. Expiry alone does not announce a
+leap second.
 
 The external Go, Temporal and ERFA cross-check remains a one-off comparison
 (`tests/CROSS-CHECK.md`), outside the verified bar. The 0096-12-31 UTC
-midnight case is now also a kernel-computed `Spec.fromUnixSeconds_vectors`
-case, rather than only a differential calendar-grid case.
+midnight case is now also a kernel-computed
+`Rfc3339.Spec.fromUnixSeconds_vectors` case, rather than only a differential
+calendar-grid case.
 
-The long IXDTF vectors in `Proofs/Ixdtf/Main.lean` use `vx_validB_sound`
-and the parser equivalence proof; they do not directly execute the whole
-parser in the kernel. Their shorter timestamp components and grammar
-checks are kernel-computed. The existing processor vectors are examples
-of one tag policy; this slice provides no worked alternative tag-set
-application. `Spec.erroneous_iff` quantifies over every `Processor`.
+The long IXDTF vectors in `Rfc3339/Proofs/Ixdtf/Main.lean` use
+`vx_validB_sound` and the parser equivalence proof; they do not directly
+execute the whole parser in the kernel. Their shorter timestamp components
+and grammar checks are kernel-computed. The existing processor vectors are
+examples of one tag policy; this slice provides no worked alternative tag-set
+application. `Rfc3339.Spec.erroneous_iff` quantifies over every `Processor`.

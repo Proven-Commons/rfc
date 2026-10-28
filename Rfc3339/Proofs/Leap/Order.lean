@@ -2,7 +2,7 @@
   SI seconds order known-valid whole seconds as their instants.
 -/
 
-import Proofs.Leap.Table
+import Rfc3339.Proofs.Leap.Table
 
 open Rfc3339
 
@@ -55,7 +55,7 @@ private theorem or_si (t : Timestamp) :
   unfold Timestamp.siSeconds
   rw [or_unix]
 
-private theorem or_lt (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
+private theorem or_lt (a b : Timestamp) (ha : Rfc3339.Spec.ValidKnown a) (hb : Rfc3339.Spec.ValidKnown b)
     (h : a.utcMinute * 61 + a.second < b.utcMinute * 61 + b.second) :
     a.siSeconds < b.siSeconds := by
   obtain ⟨_, _, _, _, _, _, _, hsa, _⟩ := ha.1
@@ -72,7 +72,7 @@ private theorem or_lt (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.Vali
     omega
   · omega
 
-private theorem or_eq (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
+private theorem or_eq (a b : Timestamp) (ha : Rfc3339.Spec.ValidKnown a) (hb : Rfc3339.Spec.ValidKnown b)
     (h : a.utcMinute * 61 + a.second = b.utcMinute * 61 + b.second) :
     a.siSeconds = b.siSeconds := by
   obtain ⟨_, _, _, _, _, _, _, hsa, _⟩ := ha.1
@@ -83,7 +83,7 @@ private theorem or_eq (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.Vali
   rw [or_si, or_si, hL]
   omega
 
-theorem siSeconds_order (a b : Timestamp) (ha : Spec.ValidKnown a) (hb : Spec.ValidKnown b)
+theorem siSeconds_order (a b : Timestamp) (ha : Rfc3339.Spec.ValidKnown a) (hb : Rfc3339.Spec.ValidKnown b)
     (fa : a.fraction = []) (fb : b.fraction = []) :
     compare a.siSeconds b.siSeconds = a.compareInstant b := by
   unfold Timestamp.compareInstant

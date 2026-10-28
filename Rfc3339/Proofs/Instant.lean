@@ -1,33 +1,33 @@
 /-
   The instant code in `Rfc3339/Instant.lean` agrees with the definitions
   in `Spec/Defs.lean`: `unixSeconds` counts the same whole seconds as
-  `Spec.unixSeconds`, `utcMinute` is `Spec.utcMinute`, and
+  `Rfc3339.Spec.unixSeconds`, `utcMinute` is `Rfc3339.Spec.utcMinute`, and
   `compareInstant` orders two valid timestamps the same way as
-  `Spec.compareInstants`.
+  `Rfc3339.Spec.compareInstants`.
 -/
 
 import Rfc3339
-import Spec.Defs
-import Proofs.DayNumber
-import Proofs.Fraction
+import Rfc3339.Spec.Defs
+import Rfc3339.Proofs.DayNumber
+import Rfc3339.Proofs.Fraction
 
 namespace Rfc3339.Proofs.Instant
 
 open Rfc3339
 
 /-- 1970-01-01 is day 719528. -/
-theorem dayNumber_epoch : Spec.dayNumber 1970 1 1 = 719528 := by decide +kernel
+theorem dayNumber_epoch : Rfc3339.Spec.dayNumber 1970 1 1 = 719528 := by decide +kernel
 
-theorem utcMinute_eq (t : Timestamp) (h : Spec.Valid t) :
-    t.utcMinute = Spec.utcMinute t := by
+theorem utcMinute_eq (t : Timestamp) (h : Rfc3339.Spec.Valid t) :
+    t.utcMinute = Rfc3339.Spec.utcMinute t := by
   obtain ⟨_, hm1, hm2, _⟩ := h
-  unfold Timestamp.utcMinute Spec.utcMinute
+  unfold Timestamp.utcMinute Rfc3339.Spec.utcMinute
   rw [DayNumber.dayNumber_eq _ _ _ hm1 hm2, DayNumber.offsetMinutes_eq]
 
-theorem unixSeconds_eq (t : Timestamp) (h : Spec.Valid t) :
-    t.unixSeconds = Spec.unixSeconds t := by
+theorem unixSeconds_eq (t : Timestamp) (h : Rfc3339.Spec.Valid t) :
+    t.unixSeconds = Rfc3339.Spec.unixSeconds t := by
   obtain ⟨_, hm1, hm2, _⟩ := h
-  unfold Timestamp.unixSeconds Spec.unixSeconds Spec.utcMinute
+  unfold Timestamp.unixSeconds Rfc3339.Spec.unixSeconds Rfc3339.Spec.utcMinute
   rw [DayNumber.dayNumber_eq _ _ _ hm1 hm2, DayNumber.offsetMinutes_eq, dayNumber_epoch]
   omega
 
@@ -68,33 +68,33 @@ theorem compare_scaled (u v P x y : Int) (hx0 : 0 ≤ x) (hxP : x < P) (hy0 : 0 
     rw [Int.add_mul, Int.one_mul] at hle
     omega
 
-theorem compareInstant_eq (a b : Timestamp) (ha : Spec.Valid a) (hb : Spec.Valid b) :
-    a.compareInstant b = Spec.compareInstants a b := by
+theorem compareInstant_eq (a b : Timestamp) (ha : Rfc3339.Spec.Valid a) (hb : Rfc3339.Spec.Valid b) :
+    a.compareInstant b = Rfc3339.Spec.compareInstants a b := by
   have hfa : ∀ d ∈ a.fraction, d ≤ 9 := ha.2.2.2.2.2.2.2.2.2.1
   have hfb : ∀ d ∈ b.fraction, d ≤ 9 := hb.2.2.2.2.2.2.2.2.2.1
   have la := Fraction.scaled_lt a.fraction hfa (max a.fraction.length b.fraction.length)
     (Nat.le_max_left _ _)
   have lb := Fraction.scaled_lt b.fraction hfb (max a.fraction.length b.fraction.length)
     (Nat.le_max_right _ _)
-  have ea : (Spec.fractionValue a.fraction : Int) *
+  have ea : (Rfc3339.Spec.fractionValue a.fraction : Int) *
       10 ^ (max a.fraction.length b.fraction.length - a.fraction.length) =
-      ((Spec.fractionValue a.fraction *
+      ((Rfc3339.Spec.fractionValue a.fraction *
         10 ^ (max a.fraction.length b.fraction.length - a.fraction.length) : Nat) : Int) := by
     push_cast; rfl
-  have eb : (Spec.fractionValue b.fraction : Int) *
+  have eb : (Rfc3339.Spec.fractionValue b.fraction : Int) *
       10 ^ (max a.fraction.length b.fraction.length - b.fraction.length) =
-      ((Spec.fractionValue b.fraction *
+      ((Rfc3339.Spec.fractionValue b.fraction *
         10 ^ (max a.fraction.length b.fraction.length - b.fraction.length) : Nat) : Int) := by
     push_cast; rfl
   have eP : ((10 ^ max a.fraction.length b.fraction.length : Nat) : Int) =
       (10 : Int) ^ max a.fraction.length b.fraction.length := by
     push_cast; rfl
-  unfold Timestamp.compareInstant Spec.compareInstants Spec.instantKey
+  unfold Timestamp.compareInstant Rfc3339.Spec.compareInstants Rfc3339.Spec.instantKey
   simp only
   rw [utcMinute_eq a ha, utcMinute_eq b hb, Fraction.compareFraction_eq _ _ hfa hfb, ea, eb,
-    compare_scaled (Spec.utcMinute a * 61 + a.second) (Spec.utcMinute b * 61 + b.second)
+    compare_scaled (Rfc3339.Spec.utcMinute a * 61 + a.second) (Rfc3339.Spec.utcMinute b * 61 + b.second)
       ((10 : Int) ^ max a.fraction.length b.fraction.length) _ _ (by omega)
       (by rw [← eP]; omega) (by omega) (by rw [← eP]; omega), compare_natCast]
-  cases compare (Spec.utcMinute a * 61 + a.second) (Spec.utcMinute b * 61 + b.second) <;> rfl
+  cases compare (Rfc3339.Spec.utcMinute a * 61 + a.second) (Rfc3339.Spec.utcMinute b * 61 + b.second) <;> rfl
 
 end Rfc3339.Proofs.Instant
