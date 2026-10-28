@@ -166,6 +166,7 @@ theorem Spec.fromUnixSeconds_isSome (s : Int) :
     signed 32-bit count reaches; the second before the epoch; the ends of
     the range, and one second past each. -/
 theorem Spec.fromUnixSeconds_vectors :
+    Rfc3339.fromUnixSeconds (-59106153600) = some ⟨96, 12, 31, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 0 = some ⟨1970, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 482196050 = some ⟨1985, 4, 12, 23, 20, 50, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 951782400 = some ⟨2000, 2, 29, 0, 0, 0, [], .z⟩ ∧
