@@ -4,10 +4,10 @@
 -/
 
 import Rfc3339
-import Spec.Defs
-import Proofs.DayNumber
-import Proofs.Instant
-import Proofs.FromUnix.Day
+import Rfc3339.Spec.Defs
+import Rfc3339.Proofs.DayNumber
+import Rfc3339.Proofs.Instant
+import Rfc3339.Proofs.FromUnix.Day
 
 namespace Rfc3339.Proofs.FromUnix
 
@@ -19,31 +19,31 @@ theorem fu_daysBeforeYear_10000 : daysBeforeYear 10000 = 3652425 := by decide
 /-- A UTC timestamp's Unix seconds, shifted to count from 0000-01-01:
     its day number in seconds, plus the time of day. -/
 theorem fu_unixSeconds_z (t : Timestamp) (hz : t.offset = .z) :
-    Spec.unixSeconds t + 719528 * 86400 =
-      ((Spec.dayNumber t.year t.month t.day * 86400 + t.hour * 3600 + t.minute * 60 +
+    Rfc3339.Spec.unixSeconds t + 719528 * 86400 =
+      ((Rfc3339.Spec.dayNumber t.year t.month t.day * 86400 + t.hour * 3600 + t.minute * 60 +
         t.second : Nat) : Int) := by
-  unfold Spec.unixSeconds Spec.utcMinute
+  unfold Rfc3339.Spec.unixSeconds Rfc3339.Spec.utcMinute
   rw [hz, Instant.dayNumber_epoch]
-  simp only [Spec.offsetMinutes]
+  simp only [Rfc3339.Spec.offsetMinutes]
   omega
 
 /-- The first second of the range. -/
-theorem fu_unixSeconds_lo : Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 := by
+theorem fu_unixSeconds_lo : Rfc3339.Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 := by
   decide +kernel
 
 /-- The last second of the range. -/
 theorem fu_unixSeconds_hi :
-    Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 := by
+    Rfc3339.Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 := by
   decide +kernel
 
 end Rfc3339.Proofs.FromUnix
 
 open Rfc3339
 
-theorem Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
+theorem Rfc3339.Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
     Rfc3339.fromUnixSeconds s = some t ↔
-      Spec.Valid t ∧ t.offset = .z ∧ t.fraction = [] ∧ t.second ≤ 59 ∧
-        Spec.unixSeconds t = s := by
+      Rfc3339.Spec.Valid t ∧ t.offset = .z ∧ t.fraction = [] ∧ t.second ≤ 59 ∧
+        Rfc3339.Spec.unixSeconds t = s := by
   have hD := Proofs.FromUnix.fu_daysBeforeYear_10000
   constructor
   · intro h
@@ -87,11 +87,11 @@ theorem Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
     dsimp only
     split
     case isFalse hr => exfalso; omega
-    have hn : (s + 719528 * 86400).toNat / 86400 = Spec.dayNumber y m d := by omega
+    have hn : (s + 719528 * 86400).toNat / 86400 = Rfc3339.Spec.dayNumber y m d := by omega
     have hsec : (s + 719528 * 86400).toNat % 86400 = hh * 3600 + mi * 60 + sec := by omega
     rw [hn, hsec]
     have hs := Proofs.FromUnix.fromDayNumber_spec _ hN
-    generalize fromDayNumber (Spec.dayNumber y m d) = p at hs ⊢
+    generalize fromDayNumber (Rfc3339.Spec.dayNumber y m d) = p at hs ⊢
     obtain ⟨y', m', d'⟩ := p
     obtain ⟨-, h2, h3, h4, h5, h6⟩ := hs
     simp only at h2 h3 h4 h5 h6
@@ -100,10 +100,10 @@ theorem Spec.fromUnixSeconds_iff (s : Int) (t : Timestamp) :
     simp only [Option.some.injEq, Timestamp.mk.injEq, true_and, and_true]
     and_intros <;> omega
 
-theorem Spec.fromUnixSeconds_isSome (s : Int) :
+theorem Rfc3339.Spec.fromUnixSeconds_isSome (s : Int) :
     (Rfc3339.fromUnixSeconds s).isSome ↔
-      Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ≤ s ∧
-        s ≤ Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
+      Rfc3339.Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ≤ s ∧
+        s ≤ Rfc3339.Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
   rw [Proofs.FromUnix.fu_unixSeconds_lo, Proofs.FromUnix.fu_unixSeconds_hi]
   have hD := Proofs.FromUnix.fu_daysBeforeYear_10000
   unfold Rfc3339.fromUnixSeconds
@@ -118,14 +118,15 @@ theorem Spec.fromUnixSeconds_isSome (s : Int) :
     simp only [Option.isSome_none, Bool.false_eq_true, false_iff]
     omega
 
-theorem Spec.fromUnixSeconds_vectors :
+theorem Rfc3339.Spec.fromUnixSeconds_vectors :
+    Rfc3339.fromUnixSeconds (-59106153600) = some ⟨96, 12, 31, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 0 = some ⟨1970, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 482196050 = some ⟨1985, 4, 12, 23, 20, 50, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 951782400 = some ⟨2000, 2, 29, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 2147483647 = some ⟨2038, 1, 19, 3, 14, 7, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-1) = some ⟨1969, 12, 31, 23, 59, 59, [], .z⟩ ∧
-    Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 ∧
-    Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 ∧
+    Rfc3339.Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ = -62167219200 ∧
+    Rfc3339.Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253402300799 ∧
     Rfc3339.fromUnixSeconds (-62167219200) = some ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 253402300799 = some ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds (-62167219201) = none ∧

@@ -2,10 +2,10 @@
   The definitions the IXDTF statements use, written from RFC 9557, the
   Internet Extended Date/Time Format, independently of the code in
   `Rfc3339/Ixdtf.lean`. Part of the approved specification, with
-  `Spec.lean`, `Spec/Defs.lean` and `Rfc3339/IxdtfTypes.lean`.
+  `Rfc3339/Spec.lean`, `Spec/Defs.lean` and `Rfc3339/IxdtfTypes.lean`.
 -/
 
-import Spec.Defs
+import Rfc3339.Spec.Defs
 import Rfc3339.IxdtfTypes
 
 open Rfc3339
@@ -51,63 +51,63 @@ what is written here.
 -/
 
 /-- `ALPHA`. -/
-def Spec.Alpha (c : Char) : Prop := ('A' ≤ c ∧ c ≤ 'Z') ∨ ('a' ≤ c ∧ c ≤ 'z')
+def Rfc3339.Spec.Alpha (c : Char) : Prop := ('A' ≤ c ∧ c ≤ 'Z') ∨ ('a' ≤ c ∧ c ≤ 'z')
 
 /-- `DIGIT`. -/
-def Spec.Digit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
+def Rfc3339.Spec.Digit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
 
 /-- `time-zone-part`, but not `.` or `..`. -/
-def Spec.ZonePart (p : List Char) : Prop :=
-  ∃ c cs, p = c :: cs ∧ (Spec.Alpha c ∨ c = '.' ∨ c = '_') ∧
-    (∀ d ∈ cs, Spec.Alpha d ∨ d = '.' ∨ d = '_' ∨ Spec.Digit d ∨ d = '-' ∨ d = '+') ∧
+def Rfc3339.Spec.ZonePart (p : List Char) : Prop :=
+  ∃ c cs, p = c :: cs ∧ (Rfc3339.Spec.Alpha c ∨ c = '.' ∨ c = '_') ∧
+    (∀ d ∈ cs, Rfc3339.Spec.Alpha d ∨ d = '.' ∨ d = '_' ∨ Rfc3339.Spec.Digit d ∨ d = '-' ∨ d = '+') ∧
     p ≠ ['.'] ∧ p ≠ ['.', '.']
 
 /-- What may stand in a `time-zone`: a `time-zone-name`, one or more
     parts, or a `time-numoffset`, which is RFC 3339's numeric offset, not
     `Z`. -/
-def Spec.ZoneValid : Zone → Prop
-  | .name parts => parts ≠ [] ∧ ∀ p ∈ parts, Spec.ZonePart p
-  | .offset o => o ≠ .z ∧ Spec.OffsetValid o
+def Rfc3339.Spec.ZoneValid : Zone → Prop
+  | .name parts => parts ≠ [] ∧ ∀ p ∈ parts, Rfc3339.Spec.ZonePart p
+  | .offset o => o ≠ .z ∧ Rfc3339.Spec.OffsetValid o
 
 /-- `suffix-key`. -/
-def Spec.SuffixKey (k : List Char) : Prop :=
+def Rfc3339.Spec.SuffixKey (k : List Char) : Prop :=
   ∃ c cs, k = c :: cs ∧ (('a' ≤ c ∧ c ≤ 'z') ∨ c = '_') ∧
-    ∀ d ∈ cs, ('a' ≤ d ∧ d ≤ 'z') ∨ d = '_' ∨ Spec.Digit d ∨ d = '-'
+    ∀ d ∈ cs, ('a' ≤ d ∧ d ≤ 'z') ∨ d = '_' ∨ Rfc3339.Spec.Digit d ∨ d = '-'
 
 /-- `suffix-value`. -/
-def Spec.SuffixValue (v : List Char) : Prop := v ≠ [] ∧ ∀ c ∈ v, Spec.Alpha c ∨ Spec.Digit c
+def Rfc3339.Spec.SuffixValue (v : List Char) : Prop := v ≠ [] ∧ ∀ c ∈ v, Rfc3339.Spec.Alpha c ∨ Rfc3339.Spec.Digit c
 
 /-- A `suffix-tag`'s key and values. -/
-def Spec.TagValid (t : Tag) : Prop :=
-  Spec.SuffixKey t.key ∧ t.values ≠ [] ∧ ∀ v ∈ t.values, Spec.SuffixValue v
+def Rfc3339.Spec.TagValid (t : Tag) : Prop :=
+  Rfc3339.Spec.SuffixKey t.key ∧ t.values ≠ [] ∧ ∀ v ∈ t.values, Rfc3339.Spec.SuffixValue v
 
 /-- An IXDTF timestamp the grammar allows: a valid RFC 3339 timestamp, a
     time zone of the grammar if there is one, and tags of the grammar. -/
-def Spec.ExtValid (e : Ext) : Prop :=
-  Spec.Valid e.stamp ∧ (∀ c z, e.zone = some (c, z) → Spec.ZoneValid z) ∧
-    ∀ t ∈ e.tags, Spec.TagValid t
+def Rfc3339.Spec.ExtValid (e : Ext) : Prop :=
+  Rfc3339.Spec.Valid e.stamp ∧ (∀ c z, e.zone = some (c, z) → Rfc3339.Spec.ZoneValid z) ∧
+    ∀ t ∈ e.tags, Rfc3339.Spec.TagValid t
 
 /-- `critical-flag`. -/
-def Spec.renderFlag (c : Bool) : List Char := if c then ['!'] else []
+def Rfc3339.Spec.renderFlag (c : Bool) : List Char := if c then ['!'] else []
 
 /-- A `time-zone-name`, its parts joined by `/`, or a `time-numoffset`. -/
-def Spec.renderZone : Zone → List Char
+def Rfc3339.Spec.renderZone : Zone → List Char
   | .name parts => (parts.intersperse ['/']).flatten
-  | .offset o => Spec.renderOffset o
+  | .offset o => Rfc3339.Spec.renderOffset o
 
 /-- `suffix-tag`. -/
-def Spec.renderTag (t : Tag) : List Char :=
-  ['['] ++ Spec.renderFlag t.critical ++ t.key ++ ['='] ++ (t.values.intersperse ['-']).flatten ++
+def Rfc3339.Spec.renderTag (t : Tag) : List Char :=
+  ['['] ++ Rfc3339.Spec.renderFlag t.critical ++ t.key ++ ['='] ++ (t.values.intersperse ['-']).flatten ++
     [']']
 
 /-- `suffix`: the `time-zone`, if any, then the tags. -/
-def Spec.renderSuffix (e : Ext) : List Char :=
+def Rfc3339.Spec.renderSuffix (e : Ext) : List Char :=
   (match e.zone with
-   | some (c, z) => ['['] ++ Spec.renderFlag c ++ Spec.renderZone z ++ [']']
+   | some (c, z) => ['['] ++ Rfc3339.Spec.renderFlag c ++ Rfc3339.Spec.renderZone z ++ [']']
    | none => []) ++
-  (e.tags.map Spec.renderTag).flatten
+  (e.tags.map Rfc3339.Spec.renderTag).flatten
 
-example : Spec.renderSuffix ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
+example : Rfc3339.Spec.renderSuffix ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩,
       some (false, .name ["America".toList, "Los_Angeles".toList]),
       [⟨false, "u-ca".toList, ["hebrew".toList]⟩]⟩ =
     "[America/Los_Angeles][u-ca=hebrew]".toList := by decide
@@ -151,24 +151,24 @@ starts with `_`, and the offset a named time zone has at an instant.
 
 /-- The timestamp's offset asserts a local offset: it is not `Z` or
     `-00:00`. -/
-def Spec.AssertsOffset (o : Offset) : Prop := o ≠ .z ∧ o ≠ .minus 0 0
+def Rfc3339.Spec.AssertsOffset (o : Offset) : Prop := o ≠ .z ∧ o ≠ .minus 0 0
 
 /-- The time zone is consistent with the timestamp, for an application
     that knows the zone offsets `p` gives: the zone is known and, where
     the timestamp asserts a local offset, has that offset. -/
-def Spec.ZoneConsistent (p : Processor) (t : Timestamp) : Zone → Prop
-  | .offset o => Spec.AssertsOffset t.offset → Spec.offsetMinutes o = Spec.offsetMinutes t.offset
+def Rfc3339.Spec.ZoneConsistent (p : Processor) (t : Timestamp) : Zone → Prop
+  | .offset o => Rfc3339.Spec.AssertsOffset t.offset → Rfc3339.Spec.offsetMinutes o = Rfc3339.Spec.offsetMinutes t.offset
   | .name parts =>
     ∃ m, p.zoneOffset parts t = some m ∧
-      (Spec.AssertsOffset t.offset → m = Spec.offsetMinutes t.offset)
+      (Rfc3339.Spec.AssertsOffset t.offset → m = Rfc3339.Spec.offsetMinutes t.offset)
 
 /-- The application must treat the string as erroneous: by section 3.4,
     a critical time zone that is not consistent with the timestamp; by
     section 3.3, a critical tag it cannot process, or a critical tag
     whose key a tag uses with other values; by section 3.2, a key for an
     experiment it does not take part in. -/
-def Spec.MustReject (p : Processor) (e : Ext) : Prop :=
-  (∃ z, e.zone = some (true, z) ∧ ¬ Spec.ZoneConsistent p e.stamp z) ∨
+def Rfc3339.Spec.MustReject (p : Processor) (e : Ext) : Prop :=
+  (∃ z, e.zone = some (true, z) ∧ ¬ Rfc3339.Spec.ZoneConsistent p e.stamp z) ∨
   (∃ t ∈ e.tags, t.critical = true ∧ p.processes t = false) ∨
   (∃ t ∈ e.tags, t.critical = true ∧ ∃ u ∈ e.tags, u.key = t.key ∧ u.values ≠ t.values) ∨
   (∃ t ∈ e.tags, t.key.head? = some '_' ∧ p.processes t = false)
@@ -179,7 +179,7 @@ def Spec.MustReject (p : Processor) (e : Ext) : Prop :=
     the offsets they had at the examples' instants: Europe/Paris +02:00
     and Europe/London +01:00 in July 2022, America/Los_Angeles -08:00 in
     December 1996. -/
-def Spec.exampleProcessor : Processor where
+def Rfc3339.Spec.exampleProcessor : Processor where
   processes t := t.key = "u-ca".toList ∧
     (t.values = ["chinese".toList] ∨ t.values = ["japanese".toList] ∨
       t.values = ["hebrew".toList])
