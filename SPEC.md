@@ -125,7 +125,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Spec.syntax_vectors` |
 | `fromUnixSeconds s` is `t` exactly when `t` is valid, in UTC, with no fraction and a second of at most 59, and names `s`. | `Spec.fromUnixSeconds_iff` |
 | `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z. | `Spec.fromUnixSeconds_isSome` |
-| The epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
+| 0096-12-31 at midnight, the epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
 | `isValidKnown` decides `Spec.ValidKnown`: `Spec.Valid`, with second 60 only at a leap second of the table. | `Spec.isValidKnown_iff` |
 | `siSeconds` is Unix seconds since 1972 and one more for each leap second of the table before the timestamp. | `Spec.siSeconds_eq` |
 | On whole seconds valid by the table, `siSeconds` gives the order of the instants. | `Spec.siSeconds_order` |

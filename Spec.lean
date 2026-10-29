@@ -162,7 +162,8 @@ theorem Spec.fromUnixSeconds_isSome (s : Int) :
       Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ≤ s ∧
         s ≤ Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
 
-/-- The epoch; the example of section 5.8; a leap day; the last second a
+/-- 0096-12-31 at midnight, from the year-start grid; the epoch; the
+    example of section 5.8; a leap day; the last second a
     signed 32-bit count reaches; the second before the epoch; the ends of
     the range, and one second past each. -/
 theorem Spec.fromUnixSeconds_vectors :
