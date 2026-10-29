@@ -125,7 +125,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | Lower case `t` and `z` are read; a space for `T`, a missing part, a comma, an out-of-range offset and trailing text are not. | `Spec.syntax_vectors` |
 | `fromUnixSeconds s` is `t` exactly when `t` is valid, in UTC, with no fraction and a second of at most 59, and names `s`. | `Spec.fromUnixSeconds_iff` |
 | `fromUnixSeconds` gives a timestamp exactly for the seconds from 0000-01-01T00:00:00Z to 9999-12-31T23:59:59Z. | `Spec.fromUnixSeconds_isSome` |
-| The epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
+| 0096-12-31 at midnight, the epoch, the section 5.8 example, a leap day, the last second of a signed 32-bit count, the second before the epoch, and the ends of the range and one second past each. | `Spec.fromUnixSeconds_vectors` |
 | `isValidKnown` decides `Spec.ValidKnown`: `Spec.Valid`, with second 60 only at a leap second of the table. | `Spec.isValidKnown_iff` |
 | `siSeconds` is Unix seconds since 1972 and one more for each leap second of the table before the timestamp. | `Spec.siSeconds_eq` |
 | On whole seconds valid by the table, `siSeconds` gives the order of the instants. | `Spec.siSeconds_order` |
@@ -159,3 +159,29 @@ The differential tests compare the tool with these oracles:
 - A copy of the rules above, written in Python from the RFC.
 - For leap seconds, tzdata's `leap-seconds.list` on the test machine, read by the test script itself, with the SI seconds and TAI − UTC worked out from it in Python.
 - For RFC 9557, the grammar of section 4.1 and the rules of sections 3.2 to 3.4, written in Python from the RFC, with the same example application.
+
+## Follow-up verification record
+
+`Rfc3339.Proofs.Leap.leapKey_table` in `Proofs/Leap/Table.lean`
+proves that the implementation's ordered list of leap-second keys equals
+the keys derived from `Spec.leapTable.tail`. `Spec.isValidKnown_iff` uses
+that equality. The literal table's agreement with IERS remains trusted.
+
+Before the table expires on 28 June 2027, obtain the current IERS Bulletin C
+and tzdata leap-seconds.list, compare the literal table in `Spec/Leap.lean`,
+and update its source and expiry record. If an entry changes, update
+`Rfc3339/Leap.lean` in the same change, rebuild the table equality proof,
+and rerun the full bar and differential suite. Have a spec reviewer check
+the replacement source. Expiry alone does not announce a leap second.
+
+The external Go, Temporal and ERFA cross-check remains a one-off comparison
+(`tests/CROSS-CHECK.md`), outside the verified bar. The 0096-12-31 UTC
+midnight case is now also a kernel-computed `Spec.fromUnixSeconds_vectors`
+case, rather than only a differential calendar-grid case.
+
+The long IXDTF vectors in `Proofs/Ixdtf/Main.lean` use `vx_validB_sound`
+and the parser equivalence proof; they do not directly execute the whole
+parser in the kernel. Their shorter timestamp components and grammar
+checks are kernel-computed. The existing processor vectors are examples
+of one tag policy; this slice provides no worked alternative tag-set
+application. `Spec.erroneous_iff` quantifies over every `Processor`.
