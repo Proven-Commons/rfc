@@ -2,7 +2,7 @@
   SI seconds and TAI − UTC against the spec.
 -/
 
-import Proofs.Leap.Table
+import Rfc3339.Proofs.Leap.Table
 
 open Rfc3339
 
@@ -15,23 +15,23 @@ theorem si_length_filter_map {α β : Type} (l : List α) (f : α → β) (p : �
   rw [List.filter_map, List.length_map]
   rfl
 
-theorem leapsBefore_eq (t : Timestamp) (h : Spec.Valid t) :
-    t.leapsBefore = Spec.leapsBefore t := by
-  unfold Timestamp.leapsBefore Spec.leapsBefore
+theorem leapsBefore_eq (t : Timestamp) (h : Rfc3339.Spec.Valid t) :
+    t.leapsBefore = Rfc3339.Spec.leapsBefore t := by
+  unfold Timestamp.leapsBefore Rfc3339.Spec.leapsBefore
   rw [Instant.utcMinute_eq t h]
   have h1 := si_length_filter_map leapMonths leapKey
-    (fun k => decide (k < Spec.utcMinute t * 61 + (t.second : Int)))
-  have h2 := si_length_filter_map Spec.leapTable.tail (fun e => Spec.leapSecondKey e.1)
-    (fun k => decide (k < Spec.utcMinute t * 61 + (t.second : Int)))
+    (fun k => decide (k < Rfc3339.Spec.utcMinute t * 61 + (t.second : Int)))
+  have h2 := si_length_filter_map Rfc3339.Spec.leapTable.tail (fun e => Rfc3339.Spec.leapSecondKey e.1)
+    (fun k => decide (k < Rfc3339.Spec.utcMinute t * 61 + (t.second : Int)))
   rw [leapKey_table] at h1
   rw [← h1, h2]
   rfl
 
-theorem si_unix1972 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 63072000 := by
+theorem si_unix1972 : Rfc3339.Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 63072000 := by
   decide +kernel
 
-theorem siSeconds_eq (t : Timestamp) (h : Spec.Valid t) : t.siSeconds = Spec.siSeconds t := by
-  unfold Timestamp.siSeconds Spec.siSeconds
+theorem siSeconds_eq (t : Timestamp) (h : Rfc3339.Spec.Valid t) : t.siSeconds = Rfc3339.Spec.siSeconds t := by
+  unfold Timestamp.siSeconds Rfc3339.Spec.siSeconds
   rw [Instant.unixSeconds_eq t h, si_unix1972, leapsBefore_eq t h]
 
 /-- The shape of the table after its first line: NTP times strictly
@@ -81,33 +81,33 @@ theorem si_lastLine (l : List (Nat × Nat)) :
         omega
       simp [hx, hx', hnil]
 
-theorem si_table_shape : si_shape 2272060800 10 Spec.leapTable.tail = true := by
+theorem si_table_shape : si_shape 2272060800 10 Rfc3339.Spec.leapTable.tail = true := by
   decide +kernel
 
-theorem si_table_mod : ∀ e ∈ Spec.leapTable.tail, e.1 % 60 = 0 := by
+theorem si_table_mod : ∀ e ∈ Rfc3339.Spec.leapTable.tail, e.1 % 60 = 0 := by
   decide +kernel
 
 theorem si_taiMinusUtcAt (x : Int) (hx : 2272060800 ≤ x) :
-    Spec.taiMinusUtcAt x = 10 + (Spec.leapTable.tail.filter fun e => decide ((e.1 : Int) ≤ x)).length := by
-  unfold Spec.taiMinusUtcAt
-  have hl : Spec.leapTable = (2272060800, 10) :: Spec.leapTable.tail := rfl
+    Rfc3339.Spec.taiMinusUtcAt x = 10 + (Rfc3339.Spec.leapTable.tail.filter fun e => decide ((e.1 : Int) ≤ x)).length := by
+  unfold Rfc3339.Spec.taiMinusUtcAt
+  have hl : Rfc3339.Spec.leapTable = (2272060800, 10) :: Rfc3339.Spec.leapTable.tail := rfl
   rw [hl]
-  exact si_lastLine Spec.leapTable.tail 2272060800 10 x si_table_shape (by omega)
+  exact si_lastLine Rfc3339.Spec.leapTable.tail 2272060800 10 x si_table_shape (by omega)
 
-theorem taiMinusUtc_eq (t : Timestamp) (h : Spec.Valid t) (h60 : t.second ≠ 60)
-    (h72 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ ≤ Spec.unixSeconds t) :
-    t.taiMinusUtc = Spec.taiMinusUtcAt (Spec.ntpOfUnix (Spec.unixSeconds t)) := by
+theorem taiMinusUtc_eq (t : Timestamp) (h : Rfc3339.Spec.Valid t) (h60 : t.second ≠ 60)
+    (h72 : Rfc3339.Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ ≤ Rfc3339.Spec.unixSeconds t) :
+    t.taiMinusUtc = Rfc3339.Spec.taiMinusUtcAt (Rfc3339.Spec.ntpOfUnix (Rfc3339.Spec.unixSeconds t)) := by
   have hs : t.second ≤ 60 := h.2.2.2.2.2.2.2.1
   rw [si_unix1972] at h72
   unfold Timestamp.taiMinusUtc
-  rw [leapsBefore_eq t h, si_taiMinusUtcAt _ (by unfold Spec.ntpOfUnix; omega)]
+  rw [leapsBefore_eq t h, si_taiMinusUtcAt _ (by unfold Rfc3339.Spec.ntpOfUnix; omega)]
   congr 1
-  unfold Spec.leapsBefore
+  unfold Rfc3339.Spec.leapsBefore
   congr 1
   apply List.filter_congr
   intro e he
   have hm := si_table_mod e he
-  unfold Spec.leapSecondKey Spec.secondKey Spec.ntpOfUnix Spec.unixSeconds
+  unfold Rfc3339.Spec.leapSecondKey Rfc3339.Spec.secondKey Rfc3339.Spec.ntpOfUnix Rfc3339.Spec.unixSeconds
   rw [Instant.dayNumber_epoch]
   simp only [decide_eq_decide]
   omega

@@ -5,7 +5,7 @@
 -/
 
 import Rfc3339
-import Spec.Defs
+import Rfc3339.Spec.Defs
 
 namespace Rfc3339.Proofs.Fraction
 
@@ -14,30 +14,30 @@ open Rfc3339
 /-- Reading digits after a value `x` already read: `x` is shifted left
     by the number of digits still to come. -/
 theorem foldl_digits (x : Nat) (ds : List Nat) :
-    List.foldl (fun acc d => 10 * acc + d) x ds = x * 10 ^ ds.length + Spec.fractionValue ds := by
+    List.foldl (fun acc d => 10 * acc + d) x ds = x * 10 ^ ds.length + Rfc3339.Spec.fractionValue ds := by
   induction ds generalizing x with
-  | nil => simp [Spec.fractionValue]
+  | nil => simp [Rfc3339.Spec.fractionValue]
   | cons d ds ih =>
-    simp only [Spec.fractionValue, List.foldl_cons, List.length_cons] at *
+    simp only [Rfc3339.Spec.fractionValue, List.foldl_cons, List.length_cons] at *
     rw [ih, ih (10 * 0 + d), Nat.pow_succ, Nat.mul_zero, Nat.zero_add, Nat.add_mul,
       Nat.add_assoc]
     congr 1
     rw [Nat.mul_comm 10 x, Nat.mul_assoc, Nat.mul_comm 10 (10 ^ ds.length)]
 
-theorem fractionValue_nil : Spec.fractionValue [] = 0 := rfl
+theorem fractionValue_nil : Rfc3339.Spec.fractionValue [] = 0 := rfl
 
 theorem fractionValue_cons (d : Nat) (ds : List Nat) :
-    Spec.fractionValue (d :: ds) = d * 10 ^ ds.length + Spec.fractionValue ds := by
+    Rfc3339.Spec.fractionValue (d :: ds) = d * 10 ^ ds.length + Rfc3339.Spec.fractionValue ds := by
   have h := foldl_digits d ds
-  simpa [Spec.fractionValue] using h
+  simpa [Rfc3339.Spec.fractionValue] using h
 
 theorem fractionValue_lt (a : List Nat) (ha : ∀ d ∈ a, d ≤ 9) :
-    Spec.fractionValue a < 10 ^ a.length := by
+    Rfc3339.Spec.fractionValue a < 10 ^ a.length := by
   induction a with
   | nil => simp [fractionValue_nil]
   | cons d ds ih =>
     have hd : d ≤ 9 := ha d (by simp)
-    have hds : Spec.fractionValue ds < 10 ^ ds.length := ih (fun e he => ha e (by simp [he]))
+    have hds : Rfc3339.Spec.fractionValue ds < 10 ^ ds.length := ih (fun e he => ha e (by simp [he]))
     rw [fractionValue_cons, List.length_cons, Nat.pow_succ]
     have h1 : d * 10 ^ ds.length + 10 ^ ds.length ≤ 10 ^ ds.length * 10 := by
       rw [Nat.mul_comm (10 ^ ds.length) 10, ← Nat.succ_mul]
@@ -46,15 +46,15 @@ theorem fractionValue_lt (a : List Nat) (ha : ∀ d ∈ a, d ≤ 9) :
 
 /-- A digit list scaled to `k` digits stays below `10 ^ k`. -/
 theorem scaled_lt (a : List Nat) (ha : ∀ d ∈ a, d ≤ 9) (k : Nat) (hk : a.length ≤ k) :
-    Spec.fractionValue a * 10 ^ (k - a.length) < 10 ^ k := by
+    Rfc3339.Spec.fractionValue a * 10 ^ (k - a.length) < 10 ^ k := by
   have h := Nat.mul_lt_mul_of_pos_right (fractionValue_lt a ha)
     ((Nat.pow_pos (n := k - a.length) (by decide : 0 < 10)))
   rwa [← Nat.pow_add, Nat.add_sub_cancel' hk] at h
 
 /-- Scaling a list with a leading digit: the digit takes the top place. -/
 theorem scaled_cons (d : Nat) (ds : List Nat) (k : Nat) (hk : ds.length ≤ k) :
-    Spec.fractionValue (d :: ds) * 10 ^ (k + 1 - (d :: ds).length) =
-      d * 10 ^ k + Spec.fractionValue ds * 10 ^ (k - ds.length) := by
+    Rfc3339.Spec.fractionValue (d :: ds) * 10 ^ (k + 1 - (d :: ds).length) =
+      d * 10 ^ k + Rfc3339.Spec.fractionValue ds * 10 ^ (k - ds.length) := by
   have e : k + 1 - (d :: ds).length = k - ds.length := by simp only [List.length_cons]; omega
   rw [e, fractionValue_cons, Nat.add_mul, Nat.mul_assoc, ← Nat.pow_add, Nat.add_sub_cancel' hk]
 
@@ -68,8 +68,8 @@ theorem compare_add_left (p x y : Nat) : compare (p + x) (p + y) = compare x y :
 theorem compareFraction_scaled (a b : List Nat) :
     (∀ d ∈ a, d ≤ 9) → (∀ d ∈ b, d ≤ 9) → ∀ k, a.length ≤ k → b.length ≤ k →
       compareFraction a b =
-        compare (Spec.fractionValue a * 10 ^ (k - a.length))
-                (Spec.fractionValue b * 10 ^ (k - b.length)) := by
+        compare (Rfc3339.Spec.fractionValue a * 10 ^ (k - a.length))
+                (Rfc3339.Spec.fractionValue b * 10 ^ (k - b.length)) := by
   induction a, b using compareFraction.induct with
   | case1 =>
     intro _ _ k _ _
@@ -161,8 +161,8 @@ theorem compareFraction_scaled (a b : List Nat) :
 
 theorem compareFraction_eq (a b : List Nat) (ha : ∀ d ∈ a, d ≤ 9) (hb : ∀ d ∈ b, d ≤ 9) :
     compareFraction a b =
-      compare (Spec.fractionValue a * 10 ^ (max a.length b.length - a.length))
-              (Spec.fractionValue b * 10 ^ (max a.length b.length - b.length)) :=
+      compare (Rfc3339.Spec.fractionValue a * 10 ^ (max a.length b.length - a.length))
+              (Rfc3339.Spec.fractionValue b * 10 ^ (max a.length b.length - b.length)) :=
   compareFraction_scaled a b ha hb _ (Nat.le_max_left _ _) (Nat.le_max_right _ _)
 
 end Rfc3339.Proofs.Fraction

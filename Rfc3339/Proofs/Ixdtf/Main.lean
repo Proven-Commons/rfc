@@ -1,41 +1,41 @@
 /-
-  The IXDTF statements of `Spec.lean`, under the same names, from the
-  lemmas in the other files of `Proofs/Ixdtf/`. The test vectors are
+  The IXDTF statements of `Rfc3339/Spec.lean`, under the same names, from the
+  lemmas in the other files of `Rfc3339/Proofs/Ixdtf/`. The test vectors are
   checked by evaluation.
 -/
 
-import Proofs.Ixdtf.Parse
-import Proofs.Ixdtf.Rules
+import Rfc3339.Proofs.Ixdtf.Parse
+import Rfc3339.Proofs.Ixdtf.Rules
 
 open Rfc3339
 
-theorem Spec.parseExt_iff (s : String) (e : Ext) :
+theorem Rfc3339.Spec.parseExt_iff (s : String) (e : Ext) :
     parseExt s = some e ↔
-      Spec.ExtValid e ∧ ∃ dt, s.toList = dt ++ Spec.renderSuffix e ∧
-        dt.map Spec.asciiUpper = Spec.render e.stamp :=
+      Rfc3339.Spec.ExtValid e ∧ ∃ dt, s.toList = dt ++ Rfc3339.Spec.renderSuffix e ∧
+        dt.map Rfc3339.Spec.asciiUpper = Rfc3339.Spec.render e.stamp :=
   Rfc3339.Proofs.Ixdtf.parseExt_iff s e
 
-theorem Spec.printExt_eq (e : Ext) (h : Spec.ExtValid e) :
-    e.print.toList = Spec.render e.stamp ++ Spec.renderSuffix e :=
+theorem Rfc3339.Spec.printExt_eq (e : Ext) (h : Rfc3339.Spec.ExtValid e) :
+    e.print.toList = Rfc3339.Spec.render e.stamp ++ Rfc3339.Spec.renderSuffix e :=
   Rfc3339.Proofs.Ixdtf.printExt_eq e h
 
-theorem Spec.parseExt_print (e : Ext) (h : Spec.ExtValid e) : parseExt e.print = some e :=
+theorem Rfc3339.Spec.parseExt_print (e : Ext) (h : Rfc3339.Spec.ExtValid e) : parseExt e.print = some e :=
   Rfc3339.Proofs.Ixdtf.parseExt_print e h
 
-theorem Spec.parseExt_plain (s : String) (h : '[' ∉ s.toList) :
+theorem Rfc3339.Spec.parseExt_plain (s : String) (h : '[' ∉ s.toList) :
     parseExt s = (parse s).map fun t => ⟨t, none, []⟩ :=
   Rfc3339.Proofs.Ixdtf.parseExt_plain s h
 
-theorem Spec.lookup_iff (e : Ext) (k : List Char) (t : Tag) :
+theorem Rfc3339.Spec.lookup_iff (e : Ext) (k : List Char) (t : Tag) :
     e.lookup k = some t ↔ ∃ l r, e.tags = l ++ t :: r ∧ t.key = k ∧ ∀ u ∈ l, u.key ≠ k :=
   Rfc3339.Proofs.Ixdtf.lookup_iff e k t
 
-theorem Spec.erroneous_iff (p : Processor) (e : Ext) :
-    e.erroneous p = true ↔ Spec.MustReject p e :=
+theorem Rfc3339.Spec.erroneous_iff (p : Processor) (e : Ext) :
+    e.erroneous p = true ↔ Rfc3339.Spec.MustReject p e :=
   Rfc3339.Proofs.Ixdtf.erroneous_iff p e
 
 /-- The grammar's checks on an IXDTF timestamp, made by the code's own
-    functions, which the lemmas of `Proofs/Ixdtf/Suffix.lean` tie to the
+    functions, which the lemmas of `Rfc3339/Proofs/Ixdtf/Suffix.lean` tie to the
     spec. Used to check the long test vectors without running the whole
     parser in the kernel, which one of the external kernels cannot do in
     its stack. -/
@@ -47,7 +47,7 @@ def vx_validB (e : Ext) : Bool :=
    | none => true) &&
   e.tags.all (fun t => keyOK t.key && !t.values.isEmpty && t.values.all valueOK)
 
-theorem vx_validB_sound (e : Ext) (h : vx_validB e = true) : Spec.ExtValid e := by
+theorem vx_validB_sound (e : Ext) (h : vx_validB e = true) : Rfc3339.Spec.ExtValid e := by
   obtain ⟨stamp, zone, tags⟩ := e
   simp only [vx_validB, Bool.and_eq_true, List.all_eq_true] at h
   obtain ⟨⟨hs, hz⟩, ht⟩ := h
@@ -68,16 +68,16 @@ theorem vx_validB_sound (e : Ext) (h : vx_validB e = true) : Spec.ExtValid e := 
       fun v hv => (Rfc3339.Proofs.Ixdtf.sx_valueOK_iff v).mp (h3.2 v hv)⟩
 
 theorem vx_parseExt (s : String) (e : Ext) (dt : List Char) (hv : vx_validB e = true)
-    (hs : s.toList = dt ++ Spec.renderSuffix e) (hd : dt.map Spec.asciiUpper = Spec.render e.stamp) :
+    (hs : s.toList = dt ++ Rfc3339.Spec.renderSuffix e) (hd : dt.map Rfc3339.Spec.asciiUpper = Rfc3339.Spec.render e.stamp) :
     parseExt s = some e :=
   (Rfc3339.Proofs.Ixdtf.parseExt_iff s e).2 ⟨vx_validB_sound e hv, dt, hs, hd⟩
 
 /-- Every example of RFC 9557, in sections 1.2, 3.3, 3.4 and 4.2, with
-    the application of `Spec.exampleProcessor`: each one is read, and is
+    the application of `Rfc3339.Spec.exampleProcessor`: each one is read, and is
     erroneous exactly where the RFC says it must be treated so. Also
     critical time zones that agree with the offset, a critical `-00:00`
     zone that does not, and strings the grammar refuses. -/
-theorem Spec.ixdtf_vectors :
+theorem Rfc3339.Spec.ixdtf_vectors :
     -- Section 4.2, Figures 4 to 7
     parseExt "1996-12-19T16:39:57-08:00" =
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none, []⟩ ∧
@@ -92,58 +92,58 @@ theorem Spec.ixdtf_vectors :
       some ⟨⟨1996, 12, 19, 16, 39, 57, [], .minus 8 0⟩, none,
         [⟨false, "_foo".toList, ["bar".toList]⟩, ⟨false, "_baz".toList, ["bat".toList]⟩]⟩ ∧
     ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles]").map
-      (·.erroneous Spec.exampleProcessor) = some false) ∧
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some false) ∧
     ((parseExt "1996-12-19T16:39:57-08:00[America/Los_Angeles][u-ca=hebrew]").map
-      (·.erroneous Spec.exampleProcessor) = some false) ∧
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some false) ∧
     -- An experiment the application does not take part in
     ((parseExt "1996-12-19T16:39:57-08:00[_foo=bar][_baz=bat]").map
-      (·.erroneous Spec.exampleProcessor) = some true) ∧
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some true) ∧
     -- Section 1.2: an offset time zone
     parseExt "2022-07-08T00:14:07+08:45[+08:45]" =
       some ⟨⟨2022, 7, 8, 0, 14, 7, [], .plus 8 45⟩, some (false, .offset (.plus 8 45)), []⟩ ∧
-    ((parseExt "2022-07-08T00:14:07+08:45[!+08:45]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+08:45[!+08:45]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
     -- Section 3.3, elective: an inconsistent zone, the zones of the note,
     -- an unknown key, repeated keys
-    ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+01:00[Europe/Paris]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07Z[Europe/Paris]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T02:14:07+02:00[Europe/Paris]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T00:14:07+01:00[knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+01:00[knort=blargel]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
     ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").map
-      (·.erroneous Spec.exampleProcessor) = some false) ∧
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some false) ∧
     ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][u-ca=japanese]").bind (·.lookup "u-ca".toList) =
       some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
     ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese]").bind (·.lookup "u-ca".toList) =
       some ⟨false, "u-ca".toList, ["chinese".toList]⟩) ∧
     -- Section 3.3, critical: the four examples
-    ((parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+01:00[!Europe/Paris]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some true) ∧
     ((parseExt "2022-07-08T00:14:07Z[!u-ca=chinese][u-ca=japanese]").map
-      (·.erroneous Spec.exampleProcessor) = some true) ∧
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some true) ∧
     ((parseExt "2022-07-08T00:14:07Z[u-ca=chinese][!u-ca=japanese]").map
-      (·.erroneous Spec.exampleProcessor) = some true) ∧
-    ((parseExt "2022-07-08T00:14:07Z[!knort=blargel]").map (·.erroneous Spec.exampleProcessor) =
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some true) ∧
+    ((parseExt "2022-07-08T00:14:07Z[!knort=blargel]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some true) ∧
     -- Section 3.4, Figures 1 and 2
-    ((parseExt "2022-07-08T00:14:07+00:00[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+00:00[!Europe/London]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some true) ∧
-    ((parseExt "2022-07-08T00:14:07+00:00[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07+00:00[Europe/London]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T00:14:07Z[!Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07Z[!Europe/London]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T00:14:07Z[Europe/London]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T00:14:07Z[Europe/London]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
     -- Critical zones that agree with the offset, and a critical `-00:00`
     -- zone, offset 0, under an offset of +01:00
     ((parseExt "1996-12-19T16:39:57-08:00[!America/Los_Angeles]").map
-      (·.erroneous Spec.exampleProcessor) = some false) ∧
-    ((parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]").map (·.erroneous Spec.exampleProcessor) =
+      (·.erroneous Rfc3339.Spec.exampleProcessor) = some false) ∧
+    ((parseExt "2022-07-08T02:14:07+02:00[!Europe/Paris]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some false) ∧
-    ((parseExt "2022-07-08T01:14:07+01:00[!-00:00]").map (·.erroneous Spec.exampleProcessor) =
+    ((parseExt "2022-07-08T01:14:07+01:00[!-00:00]").map (·.erroneous Rfc3339.Spec.exampleProcessor) =
       some true) ∧
     -- `Z` in brackets is a zone name, not an offset
     ((parseExt "2022-07-08T00:14:07Z[Z]").map (·.zone) = some (some (false, .name ["Z".toList]))) ∧

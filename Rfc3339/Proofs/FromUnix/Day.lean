@@ -4,8 +4,8 @@
 -/
 
 import Rfc3339
-import Spec.Defs
-import Proofs.DayNumber
+import Rfc3339.Spec.Defs
+import Rfc3339.Proofs.DayNumber
 
 namespace Rfc3339.Proofs.FromUnix
 
@@ -49,8 +49,8 @@ theorem yearOfDay_spec (n : Nat) :
     · omega
 
 /-- The length of year `y`, from the code's leap year rule. -/
-theorem dy_yearLength (y : Nat) : Spec.yearLength y = if isLeapYear y then 366 else 365 := by
-  unfold Spec.yearLength; rw [DayNumber.isLeapYear_eq]
+theorem dy_yearLength (y : Nat) : Rfc3339.Spec.yearLength y = if isLeapYear y then 366 else 365 := by
+  unfold Rfc3339.Spec.yearLength; rw [DayNumber.isLeapYear_eq]
 
 /-! ### Months -/
 
@@ -94,7 +94,7 @@ theorem dy_end_common : ∀ m, m < 13 → 1 ≤ m → daysBeforeMonth 1 m + days
   decide +kernel
 
 /-- `monthOfDay` gives the month that day `doy` of year `y` falls in. -/
-theorem dy_month (y doy : Nat) (h : doy < Spec.yearLength y) :
+theorem dy_month (y doy : Nat) (h : doy < Rfc3339.Spec.yearLength y) :
     1 ≤ monthOfDay y doy ∧ monthOfDay y doy ≤ 12 ∧
     daysBeforeMonth y (monthOfDay y doy) ≤ doy ∧
     doy < daysBeforeMonth y (monthOfDay y doy) + daysInMonth y (monthOfDay y doy) := by
@@ -124,7 +124,7 @@ theorem dy_month_uniq (y m k : Nat) (hm : 1 ≤ m ∧ m ≤ 12) (hk : k < daysIn
 
 /-- A month ends within its year. -/
 theorem dy_month_end (y m : Nat) (hm : 1 ≤ m ∧ m ≤ 12) :
-    daysBeforeMonth y m + daysInMonth y m ≤ Spec.yearLength y := by
+    daysBeforeMonth y m + daysInMonth y m ≤ Rfc3339.Spec.yearLength y := by
   rw [dy_yearLength]
   cases hl : isLeapYear y
   · have e : isLeapYear y = isLeapYear 1 := by rw [hl]; rfl
@@ -142,15 +142,15 @@ theorem fromDayNumber_spec (n : Nat) (h : n < daysBeforeYear 10000) :
     (fromDayNumber n).1 ≤ 9999 ∧
     1 ≤ (fromDayNumber n).2.1 ∧ (fromDayNumber n).2.1 ≤ 12 ∧
     1 ≤ (fromDayNumber n).2.2 ∧
-    (fromDayNumber n).2.2 ≤ Spec.daysInMonth (fromDayNumber n).1 (fromDayNumber n).2.1 ∧
-    Spec.dayNumber (fromDayNumber n).1 (fromDayNumber n).2.1 (fromDayNumber n).2.2 = n := by
+    (fromDayNumber n).2.2 ≤ Rfc3339.Spec.daysInMonth (fromDayNumber n).1 (fromDayNumber n).2.1 ∧
+    Rfc3339.Spec.dayNumber (fromDayNumber n).1 (fromDayNumber n).2.1 (fromDayNumber n).2.2 = n := by
   obtain ⟨h1, h2⟩ := yearOfDay_spec n
   have hy : yearOfDay n ≤ 9999 := by
     apply Nat.le_of_not_lt
     intro c
     have := dy_mono (show 10000 ≤ yearOfDay n by omega)
     omega
-  have hdoy : n - daysBeforeYear (yearOfDay n) < Spec.yearLength (yearOfDay n) := by
+  have hdoy : n - daysBeforeYear (yearOfDay n) < Rfc3339.Spec.yearLength (yearOfDay n) := by
     rw [DayNumber.daysBeforeYear_succ] at h2; omega
   obtain ⟨hm1, hm2, hm3, hm4⟩ := dy_month _ _ hdoy
   simp only [fromDayNumber]
@@ -160,8 +160,8 @@ theorem fromDayNumber_spec (n : Nat) (h : n < daysBeforeYear 10000) :
 
 /-- A valid date's day number lies in its year. -/
 theorem dy_dayNumber_bounds (y m d : Nat) (hm : 1 ≤ m ∧ m ≤ 12)
-    (hd : 1 ≤ d ∧ d ≤ Spec.daysInMonth y m) :
-    daysBeforeYear y ≤ Spec.dayNumber y m d ∧ Spec.dayNumber y m d < daysBeforeYear (y + 1) := by
+    (hd : 1 ≤ d ∧ d ≤ Rfc3339.Spec.daysInMonth y m) :
+    daysBeforeYear y ≤ Rfc3339.Spec.dayNumber y m d ∧ Rfc3339.Spec.dayNumber y m d < daysBeforeYear (y + 1) := by
   rw [← DayNumber.dayNumber_eq _ _ _ hm.1 hm.2, DayNumber.daysBeforeYear_succ]
   rw [← DayNumber.daysInMonth_eq] at hd
   have := dy_month_end y m hm
@@ -170,9 +170,9 @@ theorem dy_dayNumber_bounds (y m d : Nat) (hm : 1 ≤ m ∧ m ≤ 12)
 
 /-- Two valid dates with the same day number are the same date. -/
 theorem dayNumber_inj (y m d y' m' d' : Nat)
-    (hm : 1 ≤ m ∧ m ≤ 12) (hd : 1 ≤ d ∧ d ≤ Spec.daysInMonth y m)
-    (hm' : 1 ≤ m' ∧ m' ≤ 12) (hd' : 1 ≤ d' ∧ d' ≤ Spec.daysInMonth y' m')
-    (h : Spec.dayNumber y m d = Spec.dayNumber y' m' d') : y = y' ∧ m = m' ∧ d = d' := by
+    (hm : 1 ≤ m ∧ m ≤ 12) (hd : 1 ≤ d ∧ d ≤ Rfc3339.Spec.daysInMonth y m)
+    (hm' : 1 ≤ m' ∧ m' ≤ 12) (hd' : 1 ≤ d' ∧ d' ≤ Rfc3339.Spec.daysInMonth y' m')
+    (h : Rfc3339.Spec.dayNumber y m d = Rfc3339.Spec.dayNumber y' m' d') : y = y' ∧ m = m' ∧ d = d' := by
   have b := dy_dayNumber_bounds y m d hm hd
   have b' := dy_dayNumber_bounds y' m' d' hm' hd'
   have hy : y = y' := by
@@ -197,7 +197,7 @@ theorem dayNumber_inj (y m d y' m' d' : Nat)
 
 /-- A valid date in a year no later than 9999 falls before 10000-01-01. -/
 theorem dayNumber_lt (y m d : Nat) (hy : y ≤ 9999) (hm : 1 ≤ m ∧ m ≤ 12)
-    (hd : 1 ≤ d ∧ d ≤ Spec.daysInMonth y m) : Spec.dayNumber y m d < daysBeforeYear 10000 := by
+    (hd : 1 ≤ d ∧ d ≤ Rfc3339.Spec.daysInMonth y m) : Rfc3339.Spec.dayNumber y m d < daysBeforeYear 10000 := by
   have b := dy_dayNumber_bounds y m d hm hd
   have := dy_mono (show y + 1 ≤ 10000 by omega)
   omega

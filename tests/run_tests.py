@@ -228,7 +228,7 @@ IX_ITEMS = re.compile(r"(?:\[[^\[\]]*\])*")
 IX_ZONE_PART = re.compile(r"[A-Za-z._][A-Za-z0-9._+\-]*")
 IX_OFFSET = re.compile(r"[+-]([0-9]{2}):([0-9]{2})")
 IX_TAG = re.compile(r"([a-z_][a-z0-9_\-]*)=([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)")
-# The example application of Spec.exampleProcessor.
+# The example application of Rfc3339.Spec.exampleProcessor.
 IX_CALENDARS = (["chinese"], ["japanese"], ["hebrew"])
 IX_ZONES = {"Europe/Paris": 120, "Europe/London": 60, "America/Los_Angeles": -480}
 

@@ -16,7 +16,7 @@ entry_points = ["Main.lean"]
 # Rfc3339/Types.lean and Rfc3339/IxdtfTypes.lean hold the types the
 # statements are about, so they are part of the specification.
 files = [
-  "SPEC.md", "Spec.lean", "Spec/Defs.lean", "Spec/Leap.lean", "Spec/Ixdtf.lean",
+  "SPEC.md", "Rfc3339/Spec.lean", "Rfc3339/Spec/Defs.lean", "Rfc3339/Spec/Leap.lean", "Rfc3339/Spec/Ixdtf.lean",
   "Rfc3339/Types.lean", "Rfc3339/IxdtfTypes.lean",
 ]
 # The code under proof: the functions the statements are about.

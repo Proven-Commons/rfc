@@ -1,12 +1,12 @@
 /-
   The printer and the parser of `Rfc3339/Format.lean` against the spec:
-  `asciiUpper` is `Spec.asciiUpper`, a valid timestamp renders as
-  `Spec.render` writes it, and `parseUpper` returns `t` exactly when `t`
+  `asciiUpper` is `Rfc3339.Spec.asciiUpper`, a valid timestamp renders as
+  `Rfc3339.Spec.render` writes it, and `parseUpper` returns `t` exactly when `t`
   is valid and the input is `t.render`. From these, `parse_iff'`.
 -/
 
 import Rfc3339
-import Spec.Defs
+import Rfc3339.Spec.Defs
 
 namespace Rfc3339.Proofs.Format
 
@@ -17,24 +17,24 @@ open Rfc3339
 /-- `Char` order is the order of code points. -/
 theorem le_iff_toNat (a b : Char) : a ≤ b ↔ a.toNat ≤ b.toNat := Iff.rfl
 
-theorem asciiUpper_eq (c : Char) : asciiUpper c = Spec.asciiUpper c := by
-  unfold asciiUpper Spec.asciiUpper
+theorem asciiUpper_eq (c : Char) : asciiUpper c = Rfc3339.Spec.asciiUpper c := by
+  unfold asciiUpper Rfc3339.Spec.asciiUpper
   simp only [le_iff_toNat]
   rfl
 
 theorem print_toList (t : Timestamp) : t.print.toList = t.render := by
   simp [Timestamp.print]
 
-theorem digitChar_eq (n : Nat) (h : n < 10) : Spec.digitChar n = digitChar n := by
-  have : ∀ i : Fin 10, Spec.digitChar i.val = digitChar i.val := by decide
+theorem digitChar_eq (n : Nat) (h : n < 10) : Rfc3339.Spec.digitChar n = digitChar n := by
+  have : ∀ i : Fin 10, Rfc3339.Spec.digitChar i.val = digitChar i.val := by decide
   exact this ⟨n, h⟩
 
-/-- `pad4` and `pad2` write the last digits of any number, as `Spec.digits` does. -/
-theorem digits4 (n : Nat) : Spec.digits 4 n = pad4 n := by
-  simp [Spec.digits, pad4, List.range, List.range.loop, digitChar_eq, Nat.mod_lt]
+/-- `pad4` and `pad2` write the last digits of any number, as `Rfc3339.Spec.digits` does. -/
+theorem digits4 (n : Nat) : Rfc3339.Spec.digits 4 n = pad4 n := by
+  simp [Rfc3339.Spec.digits, pad4, List.range, List.range.loop, digitChar_eq, Nat.mod_lt]
 
-theorem digits2 (n : Nat) : Spec.digits 2 n = pad2 n := by
-  simp [Spec.digits, pad2, List.range, List.range.loop, digitChar_eq, Nat.mod_lt]
+theorem digits2 (n : Nat) : Rfc3339.Spec.digits 2 n = pad2 n := by
+  simp [Rfc3339.Spec.digits, pad2, List.range, List.range.loop, digitChar_eq, Nat.mod_lt]
 
 theorem daysInMonth_le (y m : Nat) : daysInMonth y m ≤ 31 := by
   unfold daysInMonth
@@ -49,7 +49,7 @@ theorem isValid_bounds {t : Timestamp} (h : t.isValid = true) :
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> first | omega | simp_all
 
 theorem renderFraction_eq (f : List Nat) (h : ∀ d ∈ f, d < 10) :
-    renderFraction f = if f = [] then [] else ['.'] ++ f.map Spec.digitChar := by
+    renderFraction f = if f = [] then [] else ['.'] ++ f.map Rfc3339.Spec.digitChar := by
   cases f with
   | nil => rfl
   | cons d ds =>
@@ -59,12 +59,12 @@ theorem renderFraction_eq (f : List Nat) (h : ∀ d ∈ f, d < 10) :
     intro x hx
     exact (digitChar_eq x (h x hx)).symm
 
-theorem offset_render_eq (o : Offset) : o.render = Spec.renderOffset o := by
-  cases o <;> simp [Offset.render, Spec.renderOffset, digits2]
+theorem offset_render_eq (o : Offset) : o.render = Rfc3339.Spec.renderOffset o := by
+  cases o <;> simp [Offset.render, Rfc3339.Spec.renderOffset, digits2]
 
-theorem render_eq (t : Timestamp) (h : t.isValid = true) : t.render = Spec.render t := by
+theorem render_eq (t : Timestamp) (h : t.isValid = true) : t.render = Rfc3339.Spec.render t := by
   have hb := isValid_bounds h
-  simp [Timestamp.render, Spec.render, digits4, digits2, renderFraction_eq t.fraction hb.2.2.2.2.2.2.1,
+  simp [Timestamp.render, Rfc3339.Spec.render, digits4, digits2, renderFraction_eq t.fraction hb.2.2.2.2.2.2.1,
     offset_render_eq]
 
 /-! ## Parsing -/
@@ -252,8 +252,8 @@ theorem parseUpper_iff (u : List Char) (t : Timestamp) :
     exact parseUpper_render h
 
 theorem parse_iff' (s : String) (t : Timestamp) :
-    parse s = some t ↔ t.isValid = true ∧ s.toList.map Spec.asciiUpper = Spec.render t := by
-  have hmap : s.toList.map asciiUpper = s.toList.map Spec.asciiUpper :=
+    parse s = some t ↔ t.isValid = true ∧ s.toList.map Rfc3339.Spec.asciiUpper = Rfc3339.Spec.render t := by
+  have hmap : s.toList.map asciiUpper = s.toList.map Rfc3339.Spec.asciiUpper :=
     List.map_congr_left (fun c _ => asciiUpper_eq c)
   rw [parse, hmap, parseUpper_iff]
   constructor

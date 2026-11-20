@@ -1,7 +1,7 @@
 /-
   What an RFC 9557 (IXDTF) timestamp is: an RFC 3339 timestamp, then a
   time zone and tags in brackets. Part of the approved specification,
-  with `Spec.lean` and `Spec/Ixdtf.lean`, since the IXDTF statements are
+  with `Rfc3339/Spec.lean` and `Spec/Ixdtf.lean`, since the IXDTF statements are
   about these types.
 -/
 

@@ -2,9 +2,9 @@
   From SI seconds back to a timestamp.
 -/
 
-import Proofs.Leap.Si
-import Proofs.Leap.Order
-import Proofs.FromUnix.Main
+import Rfc3339.Proofs.Leap.Si
+import Rfc3339.Proofs.Leap.Order
+import Rfc3339.Proofs.FromUnix.Main
 
 open Rfc3339
 
@@ -175,18 +175,18 @@ theorem fs_check_leap : ∀ n ∈ leapSiSeconds, fs_check n = true := by decide 
 
 /-! ## Bounds -/
 
-theorem fs_unix_1972 : Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 63072000 := by
+theorem fs_unix_1972 : Rfc3339.Spec.unixSeconds ⟨1972, 1, 1, 0, 0, 0, [], .z⟩ = 63072000 := by
   decide +kernel
 
 theorem fs_dby_1972 : daysBeforeYear 1972 = 720258 := by decide
 
-theorem fs_si_max : Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253339228826 := by
+theorem fs_si_max : Rfc3339.Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ = 253339228826 := by
   decide +kernel
 
 /-- A valid UTC second other than 60, at or after 1972-01-01T00:00:00Z,
     is in 1972 or later. -/
-theorem fs_year_of_unix (t : Timestamp) (hv : Spec.Valid t) (hz : t.offset = .z)
-    (h59 : t.second ≤ 59) (hu : 63072000 ≤ Spec.unixSeconds t) : 1972 ≤ t.year := by
+theorem fs_year_of_unix (t : Timestamp) (hv : Rfc3339.Spec.Valid t) (hz : t.offset = .z)
+    (h59 : t.second ≤ 59) (hu : 63072000 ≤ Rfc3339.Spec.unixSeconds t) : 1972 ≤ t.year := by
   apply Nat.le_of_not_lt
   intro hy
   obtain ⟨_, hm1, hm2, hd1, hd2, hh, hmi, _⟩ := hv
@@ -198,8 +198,8 @@ theorem fs_year_of_unix (t : Timestamp) (hv : Spec.Valid t) (hz : t.offset = .z)
 
 /-- A valid UTC timestamp in 1972 or later is at or after
     1972-01-01T00:00:00Z. -/
-theorem fs_unix_of_year (t : Timestamp) (hv : Spec.Valid t) (hz : t.offset = .z)
-    (hy : 1972 ≤ t.year) : 63072000 ≤ Spec.unixSeconds t := by
+theorem fs_unix_of_year (t : Timestamp) (hv : Rfc3339.Spec.Valid t) (hz : t.offset = .z)
+    (hy : 1972 ≤ t.year) : 63072000 ≤ Rfc3339.Spec.unixSeconds t := by
   obtain ⟨_, hm1, hm2, hd1, hd2, _⟩ := hv
   have e := FromUnix.fu_unixSeconds_z t hz
   have b := FromUnix.dy_dayNumber_bounds t.year t.month t.day ⟨hm1, hm2⟩ ⟨hd1, hd2⟩
@@ -207,14 +207,14 @@ theorem fs_unix_of_year (t : Timestamp) (hv : Spec.Valid t) (hz : t.offset = .z)
   rw [fs_dby_1972] at m
   omega
 
-theorem fs_si_nonneg (t : Timestamp) (hv : Spec.Valid t) (hz : t.offset = .z)
-    (hy : 1972 ≤ t.year) : 0 ≤ Spec.siSeconds t := by
-  unfold Spec.siSeconds
+theorem fs_si_nonneg (t : Timestamp) (hv : Rfc3339.Spec.Valid t) (hz : t.offset = .z)
+    (hy : 1972 ≤ t.year) : 0 ≤ Rfc3339.Spec.siSeconds t := by
+  unfold Rfc3339.Spec.siSeconds
   rw [fs_unix_1972]
   have := fs_unix_of_year t hv hz hy
   omega
 
-theorem fs_Tmax_known : Spec.ValidKnown ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ :=
+theorem fs_Tmax_known : Rfc3339.Spec.ValidKnown ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ :=
   (isValidKnown_iff _).mp (by decide +kernel)
 
 theorem fs_Tmax_utcMinute :
@@ -223,7 +223,7 @@ theorem fs_Tmax_utcMinute :
 theorem fs_leapKey_lt_max : ∀ ym ∈ leapMonths, leapKey ym < 5259491999 * 61 + 59 := by
   decide +kernel
 
-theorem fs_key_le_max (t : Timestamp) (hk : Spec.ValidKnown t) (hz : t.offset = .z) :
+theorem fs_key_le_max (t : Timestamp) (hk : Rfc3339.Spec.ValidKnown t) (hz : t.offset = .z) :
     t.utcMinute * 61 + t.second ≤ 5259491999 * 61 + 59 := by
   obtain ⟨hy, hm1, hm2, hd1, hd2, hh, hmi, hs, _⟩ := hk.1
   by_cases h60 : t.second = 60
@@ -239,9 +239,9 @@ theorem fs_key_le_max (t : Timestamp) (hk : Spec.ValidKnown t) (hz : t.offset = 
 
 /-- A known-valid UTC whole second is no later than
     9999-12-31T23:59:59Z, in SI seconds. -/
-theorem fs_si_le_max (t : Timestamp) (hk : Spec.ValidKnown t) (hz : t.offset = .z)
+theorem fs_si_le_max (t : Timestamp) (hk : Rfc3339.Spec.ValidKnown t) (hz : t.offset = .z)
     (hf : t.fraction = []) :
-    Spec.siSeconds t ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
+    Rfc3339.Spec.siSeconds t ≤ Rfc3339.Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
   have ho := siSeconds_order t _ hk fs_Tmax_known hf rfl
   rw [siSeconds_eq t hk.1, siSeconds_eq _ fs_Tmax_known.1] at ho
   have hkey : t.utcMinute * 61 + (t.second : Int) ≤
@@ -261,7 +261,7 @@ theorem fs_si_le_max (t : Timestamp) (hk : Spec.ValidKnown t) (hz : t.offset = .
 
 /-! ## Uniqueness -/
 
-theorem fs_eq_of_key (t t' : Timestamp) (hv : Spec.Valid t) (hv' : Spec.Valid t')
+theorem fs_eq_of_key (t t' : Timestamp) (hv : Rfc3339.Spec.Valid t) (hv' : Rfc3339.Spec.Valid t')
     (hz : t.offset = .z) (hz' : t'.offset = .z) (hf : t.fraction = []) (hf' : t'.fraction = [])
     (h : t.utcMinute * 61 + t.second = t'.utcMinute * 61 + t'.second) : t = t' := by
   obtain ⟨y, m, d, hh, mi, s, fr, off⟩ := t
@@ -274,16 +274,16 @@ theorem fs_eq_of_key (t t' : Timestamp) (hv : Spec.Valid t) (hv' : Spec.Valid t'
   unfold Timestamp.utcMinute at h
   simp only [offsetMinutes] at h
   rw [DayNumber.dayNumber_eq _ _ _ hm1 hm2, DayNumber.dayNumber_eq _ _ _ hm1' hm2'] at h
-  have hdn : Spec.dayNumber y m d = Spec.dayNumber y' m' d' := by omega
+  have hdn : Rfc3339.Spec.dayNumber y m d = Rfc3339.Spec.dayNumber y' m' d' := by omega
   obtain ⟨rfl, rfl, rfl⟩ := FromUnix.dayNumber_inj y m d y' m' d' ⟨hm1, hm2⟩ ⟨hd1, hd2⟩
     ⟨hm1', hm2'⟩ ⟨hd1', hd2'⟩ hdn
   have : hh = hh' ∧ mi = mi' ∧ s = s' := by omega
   obtain ⟨rfl, rfl, rfl⟩ := this
   rfl
 
-theorem fs_eq_of_si (t t' : Timestamp) (hk : Spec.ValidKnown t) (hk' : Spec.ValidKnown t')
+theorem fs_eq_of_si (t t' : Timestamp) (hk : Rfc3339.Spec.ValidKnown t) (hk' : Rfc3339.Spec.ValidKnown t')
     (hz : t.offset = .z) (hz' : t'.offset = .z) (hf : t.fraction = []) (hf' : t'.fraction = [])
-    (h : Spec.siSeconds t = Spec.siSeconds t') : t = t' := by
+    (h : Rfc3339.Spec.siSeconds t = Rfc3339.Spec.siSeconds t') : t = t' := by
   have ho := siSeconds_order t t' hk hk' hf hf'
   rw [siSeconds_eq t hk.1, siSeconds_eq t' hk'.1, h, Int.compare_eq_eq.mpr rfl] at ho
   apply fs_eq_of_key t t' hk.1 hk'.1 hz hz' hf hf'
@@ -298,8 +298,8 @@ theorem fs_eq_of_si (t t' : Timestamp) (hk : Spec.ValidKnown t) (hk' : Spec.Vali
 /-! ## The two directions -/
 
 theorem fs_forward (n : Int) (t : Timestamp) (h : fromSiSeconds n = some t) :
-    t.offset = .z ∧ t.fraction = [] ∧ Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
-      Spec.siSeconds t = n := by
+    t.offset = .z ∧ t.fraction = [] ∧ Rfc3339.Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
+      Rfc3339.Spec.siSeconds t = n := by
   by_cases hl : n ∈ leapSiSeconds
   · have hc := fs_check_leap n hl
     unfold fs_check at hc
@@ -317,7 +317,7 @@ theorem fs_forward (n : Int) (t : Timestamp) (h : fromSiSeconds n = some t) :
     · contradiction
     rename_i hn0
     simp only [hcont, Bool.false_eq_true, ite_false] at h
-    obtain ⟨hv, hz, hf, h59, hu⟩ := (Spec.fromUnixSeconds_iff _ _).mp h
+    obtain ⟨hv, hz, hf, h59, hu⟩ := (Rfc3339.Spec.fromUnixSeconds_iff _ _).mp h
     have hU : t.unixSeconds = n + 63072000 - (leapSiSeconds.filter (· < n)).length := by
       rw [Instant.unixSeconds_eq t hv]; exact hu
     obtain ⟨hk27, hc⟩ := fs_k_char n
@@ -341,7 +341,7 @@ theorem fs_forward (n : Int) (t : Timestamp) (h : fromSiSeconds n = some t) :
           rw [fs_V_zero] at h2
           omega
       exact key _ hk27 hc
-    have hs : Spec.siSeconds t = n := by
+    have hs : Rfc3339.Spec.siSeconds t = n := by
       rw [← siSeconds_eq t hv]
       unfold Timestamp.siSeconds
       rw [hU, hlb]
@@ -364,17 +364,17 @@ theorem fs_isSome_of_bounds (n : Int) (h0 : 0 ≤ n) (h1 : n ≤ 253339228826) :
   dsimp only
   split
   · rw [Option.isSome_map]
-    apply (Spec.fromUnixSeconds_isSome _).mpr
+    apply (Rfc3339.Spec.fromUnixSeconds_isSome _).mpr
     rw [FromUnix.fu_unixSeconds_lo, FromUnix.fu_unixSeconds_hi]
     omega
-  · apply (Spec.fromUnixSeconds_isSome _).mpr
+  · apply (Rfc3339.Spec.fromUnixSeconds_isSome _).mpr
     rw [FromUnix.fu_unixSeconds_lo, FromUnix.fu_unixSeconds_hi]
     omega
 
 theorem fromSiSeconds_iff (n : Int) (t : Timestamp) :
     fromSiSeconds n = some t ↔
-      t.offset = .z ∧ t.fraction = [] ∧ Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
-        Spec.siSeconds t = n := by
+      t.offset = .z ∧ t.fraction = [] ∧ Rfc3339.Spec.ValidKnown t ∧ 1972 ≤ t.year ∧
+        Rfc3339.Spec.siSeconds t = n := by
   constructor
   · exact fs_forward n t
   · rintro ⟨hz, hf, hk, hy, hs⟩
@@ -388,7 +388,7 @@ theorem fromSiSeconds_iff (n : Int) (t : Timestamp) :
 
 theorem fromSiSeconds_isSome (n : Int) :
     (fromSiSeconds n).isSome ↔
-      0 ≤ n ∧ n ≤ Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
+      0 ≤ n ∧ n ≤ Rfc3339.Spec.siSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := by
   constructor
   · intro h
     obtain ⟨t, ht⟩ := Option.isSome_iff_exists.mp h

@@ -1,16 +1,18 @@
 name = "rfc3339"
 version = "0.1.0"
 license = "Apache-2.0"
-defaultTargets = ["Rfc3339", "Spec", "Proofs", "rfc3339"]
+defaultTargets = ["Rfc3339", "Rfc3339Spec", "Rfc3339Proofs", "rfc3339"]
 
 [[lean_lib]]
 name = "Rfc3339"
 
 [[lean_lib]]
-name = "Spec"
+name = "Rfc3339Spec"
+roots = ["Rfc3339.Spec"]
 
 [[lean_lib]]
-name = "Proofs"
+name = "Rfc3339Proofs"
+roots = ["Rfc3339.Proofs"]
 
 [[lean_exe]]
 name = "rfc3339"

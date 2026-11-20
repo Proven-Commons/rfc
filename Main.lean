@@ -34,7 +34,7 @@
                       at a leap second, or NONE outside 1972 to 9999
     ixdtf HEX         prints  OK, then tab-separated: the printed form of
                       the RFC 9557 string, whether the example
-                      application of `Spec.exampleProcessor` must treat
+                      application of `Rfc3339.Spec.exampleProcessor` must treat
                       it as erroneous (`true` or `false`), and the values
                       of the first `u-ca` tag joined by `-`, or `-`;
                       or REJECT
@@ -54,7 +54,7 @@
 -/
 
 import Rfc3339
-import Spec.Ixdtf
+import Rfc3339.Spec.Ixdtf
 
 open Rfc3339
 
@@ -129,7 +129,7 @@ def request (line : String) : Option String :=
         let cal := match e.lookup "u-ca".toList with
           | some t => String.ofList (['-'].intercalate t.values)
           | none => "-"
-        s!"OK\t{e.print}\t{e.erroneous Spec.exampleProcessor}\t{cal}"
+        s!"OK\t{e.print}\t{e.erroneous Rfc3339.Spec.exampleProcessor}\t{cal}"
       | none => "REJECT"
   | ["fromsi", n] => do
     let s ← decimal n
