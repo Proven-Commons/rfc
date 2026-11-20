@@ -175,9 +175,10 @@ and rerun the full bar and differential suite. Have a spec reviewer check
 the replacement source. Expiry alone does not announce a leap second.
 
 The external Go, Temporal and ERFA cross-check remains a one-off comparison
-(`tests/CROSS-CHECK.md`), outside the verified bar. The 0096-12-31 UTC
-midnight case is now also a kernel-computed `Spec.fromUnixSeconds_vectors`
-case, rather than only a differential calendar-grid case.
+(`tests/CROSS-CHECK.md`), outside the verified bar. On 0096-12-31 the
+differential grid sends only 23:59:59Z. `Spec.fromUnixSeconds_vectors` now
+kernel-computes the first second of that day (00:00:00Z); both seconds take
+the same move-down branch.
 
 The long IXDTF vectors in `Proofs/Ixdtf/Main.lean` use `vx_validB_sound`
 and the parser equivalence proof; they do not directly execute the whole
