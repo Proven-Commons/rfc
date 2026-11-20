@@ -162,10 +162,11 @@ theorem Rfc3339.Spec.fromUnixSeconds_isSome (s : Int) :
       Rfc3339.Spec.unixSeconds ⟨0, 1, 1, 0, 0, 0, [], .z⟩ ≤ s ∧
         s ≤ Rfc3339.Spec.unixSeconds ⟨9999, 12, 31, 23, 59, 59, [], .z⟩ := sorry
 
-/-- 0096-12-31 at midnight, from the year-start grid; the epoch; the
-    example of section 5.8; a leap day; the last second a
-    signed 32-bit count reaches; the second before the epoch; the ends of
-    the range, and one second past each. -/
+/-- 0096-12-31 at midnight; the epoch; the example of section 5.8; a leap
+    day; the last second a signed 32-bit count reaches; the second before
+    the epoch; the ends of the range, and one second past each. On
+    0096-12-31 the differential grid sends only 23:59:59Z; both seconds
+    take the same move-down branch. -/
 theorem Rfc3339.Spec.fromUnixSeconds_vectors :
     Rfc3339.fromUnixSeconds (-59106153600) = some ⟨96, 12, 31, 0, 0, 0, [], .z⟩ ∧
     Rfc3339.fromUnixSeconds 0 = some ⟨1970, 1, 1, 0, 0, 0, [], .z⟩ ∧
